@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f7f5eb">
+    <title>Lunch Wheel</title>
+    <link rel="stylesheet" href="styles.css?v=12">
+    <script src="restaurants.js?v=12" defer></script>
+    <script src="app.js?v=32" defer></script>
+</head>
+<body>
+    <main>
+        <header class="page-header">
+            <div class="brand-row">
+                <a class="brand" href="#" aria-label="Lunch Wheel home">
+                    <span class="brand-mark" aria-hidden="true">L</span>
+                    <span>Lunch Wheel</span>
+                </a>
+                <span class="location-pill"><span aria-hidden="true">●</span> Sveavägen 47, Stockholm</span>
+            </div>
+            <div class="hero-copy">
+                <p class="eyebrow">Your lunch break, sorted</p>
+                <h1>Good lunch.<br><span>Zero deciding.</span></h1>
+                <p>Spin for somewhere nearby, or browse the places that fit your day.</p>
+            </div>
+        </header>
+
+        <div class="layout">
+            <section class="wheel-area" aria-label="Lunch picker wheel">
+                <div class="wheel-frame">
+                    <div class="pointer" aria-hidden="true"></div>
+                    <canvas id="wheel" role="img" aria-label="Wheel of nearby restaurants"></canvas>
+                    <div class="wheel-tooltip" id="wheel-tooltip" role="status" hidden></div>
+                    <div class="wheel-hub" aria-hidden="true"><span>LET'S</span><strong>EAT</strong></div>
+                    <div class="wheel-empty" id="wheel-empty" role="status" aria-live="polite" hidden>
+                        <strong id="wheel-empty-title"></strong>
+                        <span id="wheel-empty-message"></span>
+                        <button class="clear-filters-button" id="clear-wheel-filters" type="button" hidden>Clear filters</button>
+                    </div>
+                </div>
+                <button class="spin-button" id="spin" type="button" disabled>Spin the wheel</button>
+                <p class="result" id="result" aria-live="polite">Loading restaurant details…</p>
+                <div class="winner-details" id="winner-details"></div>
+                <p class="wheel-caption"><span aria-hidden="true">✦</span> A little chance, a much better lunch</p>
+            </section>
+
+            <section class="options-panel" aria-labelledby="places-title">
+                <div class="panel-heading">
+                    <div>
+                        <p class="section-kicker">THE SHORTLIST</p>
+                        <h2 id="places-title">Around the corner</h2>
+                    </div>
+                    <span class="count-pill" id="option-count">Loading…</span>
+                </div>
+                <div class="data-toolbar">
+                    <p class="helper" id="data-note" aria-live="polite">Loading restaurant details…</p>
+                    <button class="refresh-button" id="refresh-data" type="button"><span aria-hidden="true">↻</span> Refresh nearby data</button>
+                </div>
+
+                <section class="filters" aria-labelledby="filters-title">
+                    <div class="filters-heading">
+                        <h3 id="filters-title">Find your kind of lunch</h3>
+                        <span>FILTERS</span>
+                    </div>
+                    <label class="search-label" for="place-search">Search by name, address, or cuisine
+                        <input id="place-search" type="search" placeholder="Try sushi, pizza, or a name…" autocomplete="off">
+                    </label>
+                    <div class="filter-fields filter-single">
+                        <div class="category-filter">
+                            <span class="filter-field-label">Place type</span>
+                            <details id="category-filter-menu">
+                                <summary id="category-filter-summary">All types</summary>
+                                <div class="category-filter-options" role="group" aria-label="Filter by place type">
+                                    <label><input name="filter-category" type="checkbox" value="Restaurant"> Restaurants</label>
+                                    <label><input name="filter-category" type="checkbox" value="Cafe"> Cafes</label>
+                                    <label><input name="filter-category" type="checkbox" value="Fast food"> Fast food</label>
+                                    <label><input name="filter-category" type="checkbox" value="Bakery"> Bakeries</label>
+                                    <label><input name="filter-category" type="checkbox" value="Sandwich shop"> Sandwich shops</label>
+                                    <label><input name="filter-category" type="checkbox" value="Takeaway"> Takeaway</label>
+                                    <label><input name="filter-category" type="checkbox" value="Brunch"> Brunch</label>
+                                </div>
+                            </details>
+                        </div>
+                    </div>
+                    <div class="filter-options">
+                        <label class="filter-check">
+                            <input id="filter-closed" type="checkbox" checked>
+                            Include closed places on the wheel
+                        </label>
+                        <label class="filter-check">
+                            <input id="filter-unpriced" type="checkbox" checked>
+                            Show and spin places without confirmed prices
+                        </label>
+                        <label class="filter-check">
+                            <input id="filter-vegetarian" type="checkbox">
+                            Has vegetarian options
+                        </label>
+                    </div>
+                    <div class="filter-fields">
+                        <label>
+                            Max walking time
+                            <select id="filter-walk">
+                                <option value="">Any</option>
+                                <option value="5">5 min</option>
+                                <option value="10">10 min</option>
+                                <option value="15">15 min</option>
+                                <option value="20">20 min</option>
+                                <option value="25">25 min</option>
+                                <option value="30">30 min</option>
+                            </select>
+                        </label>
+                        <label>
+                            Max lunch price
+                            <select id="filter-price">
+                                <option value="">Any</option>
+                                <option value="120">120 kr</option>
+                                <option value="150">150 kr</option>
+                                <option value="180">180 kr</option>
+                                <option value="220">220 kr</option>
+                                <option value="300">300 kr</option>
+                            </select>
+                        </label>
+                    </div>
+                </section>
+
+                <div class="list-heading">
+                    <span>Lunch spots</span>
+                    <span>Open spots first</span>
+                </div>
+                <ul class="option-list" id="option-list" aria-label="Nearby places for lunch"></ul>
+                <p class="list-note">Places are sorted with open spots first, then hours-unconfirmed places, then closed places. Use the checkboxes to control which uncertain or closed places can join the wheel; closed places stay visible at the bottom and are greyed out when excluded. Use Edit on any place to update its details; your changes are saved in this browser. <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a>. Verify hours on each place’s Google Maps listing.</p>
+
+                <details class="add-section">
+                    <summary id="add-title"><span class="add-icon" aria-hidden="true">+</span><span>Add a lunch spot</span><span class="summary-hint">Have a favorite nearby?</span></summary>
+                    <div class="add-content">
+                    <p class="form-help">Add a restaurant, cafe, bakery, sandwich shop, or takeaway. Paste its Google Maps link and fill in what you know. Hours are optional; without them the place is marked hours-unconfirmed but can still be spun. Google Maps does not let this page read business details directly, so verify them on the listing.</p>
+                    <form id="add-form">
+                        <label>
+                            Google Maps link
+                            <input id="new-map-link" type="url" placeholder="https://maps.google.com/…" autocomplete="url">
+                        </label>
+                        <div class="form-grid">
+                            <label>
+                                Place name
+                                <input id="new-name" type="text" maxlength="60" placeholder="Place name" required>
+                            </label>
+                            <label>
+                                Address
+                                <input id="new-address" type="text" maxlength="100" placeholder="Street address, Stockholm">
+                            </label>
+                            <label>
+                                Walking time (minutes)
+                                <input id="new-walk" type="number" min="1" max="120" placeholder="e.g. 10">
+                            </label>
+                            <label>
+                                Place type
+                                <select id="new-category">
+                                    <option value="Restaurant">Restaurant</option>
+                                    <option value="Cafe">Cafe</option>
+                                    <option value="Fast food">Fast food</option>
+                                    <option value="Bakery">Bakery</option>
+                                    <option value="Sandwich shop">Sandwich shop</option>
+                                    <option value="Takeaway">Takeaway</option>
+                                    <option value="Brunch">Brunch</option>
+                                </select>
+                            </label>
+                            <label>
+                                Usual lunch price (kr)
+                                <input id="new-price" type="number" min="0" max="5000" placeholder="e.g. 145">
+                            </label>
+                            <label>
+                                Vegetarian options
+                                <select id="new-vegetarian">
+                                    <option value="unknown">Not sure</option>
+                                    <option value="yes">Yes</option>
+                                    <option value="no">No</option>
+                                </select>
+                            </label>
+                        </div>
+                        <label>
+                            Weekly opening hours (optional)
+                            <textarea id="new-hours" rows="3" placeholder="Mon-Fri 11:00-21:00; Sat 12:00-22:00; Sun closed"></textarea>
+                        </label>
+                        <button class="add-button" type="submit">Add place</button>
+                        <p class="form-message" id="form-message" aria-live="polite"></p>
+                    </form>
+                    </div>
+                </details>
+            </section>
+        </div>
+    </main>
+</body>
+</html>
