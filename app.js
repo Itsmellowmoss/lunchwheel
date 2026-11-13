@@ -336,13 +336,36 @@
     }
 
     // Places with the most information first; closed places stay at the bottom
+    // The list order chosen in "Sort by". Places without the sorted-by information always come last (below a divider
+    // line); within each part, closed places come after open ones.
+    const SORT_KEY = "lunch-wheel-sort-v1";
+    const SORT_SELECT = document.querySelector("#sort-by");
+    const cheapestPrice = (restaurant) => restaurant.priceMin ?? restaurant.priceMax;
+
+    // The value a place is sorted by (lower comes first), or null when the place doesn't have that information
+    function sortValue(restaurant) {
+        switch (SORT_SELECT.value) {
+            case "walk": return restaurant.walkMinutes ?? null;
+            case "price": return cheapestPrice(restaurant) ?? null;
+            case "rating": {
+                const summary = reviewSummaries.get(restaurant.id);
+                return summary ? -(summary.average * 1000 + summary.count) : null; // best first, more reviews breaks ties
+            }
+            default: return 0;
+        }
+    }
+
     function compareByRelevance(first, second, now) {
         const statusOrder = { open: 0, unknown: 1, closed: 2 };
         const firstState = getStatus(first, now).state;
         const secondState = getStatus(second, now).state;
-        return (firstState === "closed") - (secondState === "closed")
-            || informationScore(second) - informationScore(first)
-            || statusOrder[firstState] - statusOrder[secondState]
+        const a = sortValue(first), b = sortValue(second);
+        return (a === null) - (b === null) // 1. places with the information first
+            || (firstState === "closed") - (secondState === "closed") // 2. then open before closed
+            || (a ?? 0) - (b ?? 0) // 3. then by the chosen value
+            || (SORT_SELECT.value === "name"
+                ? NAME_COLLATOR.compare(displayRestaurantName(first), displayRestaurantName(second))
+                : informationScore(second) - informationScore(first) || statusOrder[firstState] - statusOrder[secondState])
             || compareRestaurants(first, second);
     }
 
@@ -1515,7 +1538,9 @@
         WHEEL_TOOLTIP.hidden = true;
         buildBrands();
         const filtered = getFilteredRestaurants(now).sort((first, second) => compareByRelevance(first, second, now));
-        const groups = groupBranches(filtered);
+        // Each card is placed by the branch it shows (for chains that can differ from the branch that sorted first)
+        const groups = groupBranches(filtered)
+            .sort((first, second) => compareByRelevance(pickBranch(first), pickBranch(second), now));
         const matchingPlaces = restaurants.filter((restaurant) => !hiddenIds.includes(restaurant.id)
             && matchesOtherFilters(restaurant, now));
         const matchingPlacesAreHidden = matchingPlaces.length === 0
@@ -1588,8 +1613,21 @@
             OPTION_LIST.append(empty);
         }
 
+        // When sorting by walk, rating or price, a line marks where the places without that information start
+        const missingLabel = { walk: "No walking time listed", rating: "Not reviewed yet", price: "No price listed" }[SORT_SELECT.value];
+        const hasSortInfo = (place) => sortValue(place) !== null;
+        let dividerShown = false;
+
         groups.forEach((branches) => {
             const restaurant = pickBranch(branches);
+            if (missingLabel && !dividerShown && !hasSortInfo(restaurant)) {
+                const divider = document.createElement("li");
+                divider.className = "list-divider";
+                divider.setAttribute("role", "separator");
+                divider.textContent = missingLabel;
+                OPTION_LIST.append(divider);
+                dividerShown = true;
+            }
             const brand = brandKey(restaurant);
             const status = getStatus(restaurant, now);
             const item = document.createElement("li");
@@ -2239,6 +2277,12 @@
             saveUserData();
         }
         restoreFilterSettings();
+        try {
+            const savedSort = localStorage.getItem(SORT_KEY);
+            if ([...SORT_SELECT.options].some((option) => option.value === savedSort)) SORT_SELECT.value = savedSort;
+        } catch {
+            // only a convenience
+        }
         restaurants = applySavedRestaurantEdits([...data.restaurants, ...customRestaurants]);
         reviewableIds = new Set(data.restaurants.map((restaurant) => restaurant.id));
 
@@ -2251,6 +2295,14 @@
             });
         }
         RESET_FILTERS.addEventListener("click", resetFilters);
+        SORT_SELECT.addEventListener("change", () => {
+            try {
+                localStorage.setItem(SORT_KEY, SORT_SELECT.value);
+            } catch {
+                // only a convenience
+            }
+            renderRestaurants();
+        });
         FILTERS.search.addEventListener("input", () => {
             WINNER_DETAILS.replaceChildren();
             renderRestaurants();

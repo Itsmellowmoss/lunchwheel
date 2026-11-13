@@ -1681,3 +1681,52 @@ a.winner-button.primary:hover {
 .winner-card:focus {
     outline: none;
 }
+
+/* "Sort by" menu next to the Lunch spots heading */
+.list-heading {
+    align-items: center;
+}
+
+.sort-label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: #6b746a;
+    font-size: 0.74rem;
+    font-weight: 800;
+}
+
+.sort-label select {
+    width: auto;
+    padding: 5px 30px 5px 10px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+/* "No price listed" etc: where a sort runs out of information */
+.option-list li.list-divider,
+.option-list li.list-divider:hover {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 6px;
+    padding: 0 2px;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    color: #8d9289;
+    font-size: 0.7rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transform: none;
+}
+
+.option-list li.list-divider::before,
+.option-list li.list-divider::after {
+    flex: 1;
+    height: 1px;
+    background: #dfdfd3;
+    content: "";
+}
