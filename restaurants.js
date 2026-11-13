@@ -5,7 +5,15 @@ window.LUNCH_WHEEL_DATA = {
     location: "Sveavägen 47, Stockholm",
     origin: "59.3395657,18.0592044",
     timezone: "Europe/Stockholm",
-    lunchExcludedNames: ["L'Avventura", "Garage Del Gusto"],
+    lunchExcludedNames: ["L'Avventura", "Garage Del Gusto", "Nybergs Konditori och Cafe", "Fabrique", "Fabrique Sveavägen", "Socker Sucker", "S:t Paul bageri", "Eders konditori & Choklad", "Le Violon Dingue", "Muffin Bakery", "Oolong Tea House", "Två systrars bageri", "Chokladfabriken", "Brot", "Frost Bageri Vasaparken", "NK Art Bakery", "Bergstrands Bageri"],
+    lunchExcludedPlaces: [
+        {
+            name: "Espresso House",
+            address: "Sveavägen 82",
+            latitude: 59.3406303,
+            longitude: 18.0591084
+        }
+    ],
     restaurants: [
         {
             id: "fullmoon-wok",
@@ -39,7 +47,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "fullmoon-wok-sveavagen",
-            name: "Fullmoon Wok - Sveavägen",
+            name: "Fullmoon Wok",
             cuisine: "Thai restaurant",
             address: "Sveavägen 84, Stockholm",
             latitude: 59.3408682,
@@ -256,16 +264,19 @@ window.LUNCH_WHEEL_DATA = {
             longitude: 18.0591629,
             walkMinutes: 1,
             walkIsEstimate: true,
-            priceMin: null,
-            priceMax: null,
-            vegetarian: "unknown",
-            vegetarianNote: "Official menu and the Sveavägen delivery listing would not load, so no vegetarian dish could be checked; this does not mean none is available.",
-            vegetarianSource: "",
+            priceMin: 59,
+            priceMax: 139,
+            priceNote: "Meals (burger, fries and drink): York's Cheese 59 kr, QP Cheese 89 kr, California 109 kr, Vegas 119 kr, Mister Big 139 kr",
+            priceSource: "https://order.misteryork.se/se/sv-se",
+            priceCheckedAt: "13 November 2026",
+            vegetarian: "yes",
+            vegetarianNote: "Halloumi (grillost) burgers 69-87 kr and plant-based Crispy No Chicken burgers 59-89 kr (meal 85-119 kr) on the Sveavägen menu.",
+            vegetarianSource: "https://order.misteryork.se/se/sv-se",
             takeaway: "yes",
             takeawayNote: "Chain site describes its food as take-away and lists Sveavägen 47 with online ordering; Thatsup's branch listing confirms ordering for pickup.",
             takeawaySource: "https://misteryork.se",
-            hoursSource: "Google Maps",
-            hoursCheckedAt: "9 November 2026",
+            hoursSource: "Mister York's ordering site",
+            hoursCheckedAt: "13 November 2026",
             hours: {
                 mon: ["10:00-01:00"],
                 tue: ["10:00-01:00"],
@@ -310,7 +321,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "brod-salt-sveavagen",
-            name: "Bröd & Salt - Sveavägen",
+            name: "Bröd & Salt",
             cuisine: "Cafe",
             address: "Sveavägen 80, Stockholm",
             latitude: 59.3404393,
@@ -523,7 +534,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "hirschenkeller-sveavagen",
-            name: "Hirschenkeller Sveavägen",
+            name: "Hirschenkeller",
             cuisine: "Restaurant",
             address: "Sveavägen 61, Stockholm",
             latitude: 59.341119,
@@ -552,7 +563,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "vi-na-fresh-drottninggatan",
-            name: "Vi-Na Fresh Drottninggatan",
+            name: "Vi-Na Fresh",
             cuisine: "Vietnamese restaurant",
             address: "Drottninggatan 79, Stockholm",
             latitude: 59.3377171,
@@ -648,7 +659,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "urban-deli-sveavagen",
-            name: "Urban Deli Sveavägen",
+            name: "Urban Deli",
             cuisine: "Restaurant",
             address: "Sveavägen 44, Stockholm",
             latitude: 59.336772,
@@ -771,7 +782,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "brod-salt-odenplan",
-            name: "Bröd & Salt - Karlbergsvägen",
+            name: "Bröd & Salt",
             cuisine: "Cafe",
             address: "Karlbergsvägen 8, Stockholm",
             latitude: 59.3432077,
@@ -1192,7 +1203,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "le-kebab-odenplan",
-            name: "Le Kebab Odenplan",
+            name: "Le Kebab",
             cuisine: "Kebab",
             address: "Upplandsgatan 51, Stockholm",
             latitude: 59.3418938,
@@ -1224,7 +1235,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "mcdonalds-sveavagen",
-            name: "McDonald's Sveavägen",
+            name: "McDonald's",
             cuisine: "Fast food",
             address: "Sveavägen 71, Stockholm",
             latitude: 59.3432568,
@@ -1253,7 +1264,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "los-tacos-sveavagen",
-            name: "Los Tacos Sveavägen",
+            name: "Los Tacos",
             cuisine: "Mexican restaurant",
             address: "Sveavägen 88, Stockholm",
             latitude: 59.3411468,
@@ -1373,7 +1384,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "subculture-sveavagen",
-            name: "Subculture Sveavägen",
+            name: "Subculture",
             cuisine: "Restaurant",
             address: "Sveavägen 77A, Stockholm",
             latitude: 59.3444145,
@@ -1402,7 +1413,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "midan-odenplan",
-            name: "Midan Odenplan",
+            name: "Midan",
             cuisine: "Fast food",
             address: "Odengatan 58, Stockholm",
             latitude: 59.343584,
@@ -1527,7 +1538,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "holy-kebab-vasastan",
-            name: "Holy Kebab Vasastan",
+            name: "Holy Kebab",
             cuisine: "Kebab",
             address: "Odengatan 45, Stockholm",
             latitude: 59.3443141,
@@ -1679,7 +1690,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "caffe-nero-sveavagen-98",
-            name: "Caffè Nero Sveavägen 98",
+            name: "Caffè Nero",
             cuisine: "Cafe",
             address: "Sveavägen 98, Stockholm",
             latitude: 59.3424172,
@@ -1733,64 +1744,6 @@ window.LUNCH_WHEEL_DATA = {
                 fri: ["08:15-19:00"],
                 sat: ["11:00-18:00"],
                 sun: []
-            }
-        },
-        {
-            id: "nybergs-konditori-cafe",
-            name: "Nybergs Konditori och Cafe",
-            cuisine: "Cafe",
-            address: "Norrtullsgatan 25, Stockholm",
-            latitude: 59.3438907,
-            longitude: 18.0497578,
-            walkMinutes: 12,
-            walkIsEstimate: true,
-            priceMin: null,
-            priceMax: null,
-            vegetarian: "unknown",
-            vegetarianNote: "The official site was temporarily disabled (HTTP 503) and no delivery listing was found; this does not mean no vegetarian option is available.",
-            vegetarianSource: "",
-            takeaway: "unknown",
-            takeawayNote: "No official site, delivery-app listing or other takeaway source found for Norrtullsgatan 25; this does not mean none is available.",
-            takeawaySource: "",
-            hoursSource: "Google Maps",
-            hoursCheckedAt: "9 November 2026",
-            hours: {
-                mon: ["07:00-19:00"],
-                tue: ["07:00-19:00"],
-                wed: ["07:00-19:00"],
-                thu: ["07:00-19:00"],
-                fri: ["07:00-19:00"],
-                sat: ["10:00-17:00"],
-                sun: ["10:00-17:00"]
-            }
-        },
-        {
-            id: "fabrique-sveavagen-29",
-            name: "Fabrique Sveavägen",
-            cuisine: "Bakery",
-            address: "Sveavägen 29, Stockholm",
-            latitude: 59.336284,
-            longitude: 18.0624782,
-            walkMinutes: 7,
-            walkIsEstimate: true,
-            priceMin: null,
-            priceMax: null,
-            vegetarian: "unknown",
-            vegetarianNote: "The official site lists the store but has no menu; this does not mean no vegetarian option is available.",
-            vegetarianSource: "https://fabrique.se/locations/",
-            takeaway: "unknown",
-            takeawayNote: "The only pickup option found is ordering a day ahead (order today, collect tomorrow), which doesn't count as lunch takeaway; no same-day ordering or delivery-app listing was found.",
-            takeawaySource: "https://fabrique.se/locations/",
-            hoursSource: "Google Maps",
-            hoursCheckedAt: "9 November 2026",
-            hours: {
-                mon: ["07:00-18:00"],
-                tue: ["07:00-18:00"],
-                wed: ["07:00-18:00"],
-                thu: ["07:00-18:00"],
-                fri: ["07:00-18:00"],
-                sat: ["09:00-17:00"],
-                sun: ["09:00-17:00"]
             }
         },
         {
@@ -1920,7 +1873,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "petite-france-sveavagen",
-            name: "Petite France Sveavägen",
+            name: "Petite France",
             cuisine: "Cafe",
             address: "Sveavägen 19, Stockholm",
             latitude: 59.3352587,
@@ -1982,7 +1935,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "caffe-nero-sveavagen-41",
-            name: "Caffè Nero Sveavägen 41",
+            name: "Caffè Nero",
             cuisine: "Cafe",
             address: "Sveavägen 41, Stockholm",
             latitude: 59.3388837,
@@ -2011,7 +1964,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "espresso-house-odenplan",
-            name: "Espresso House Odenplan",
+            name: "Espresso House",
             cuisine: "Cafe",
             address: "Karlbergsvägen 10, Stockholm",
             latitude: 59.3431958,
@@ -2097,35 +2050,6 @@ window.LUNCH_WHEEL_DATA = {
                 fri: ["07:30-17:00"],
                 sat: ["10:30-16:00"],
                 sun: []
-            }
-        },
-        {
-            id: "socker-sucker",
-            name: "Socker Sucker",
-            cuisine: "Bakery",
-            address: "Drottninggatan 93, Stockholm",
-            latitude: 59.3394198,
-            longitude: 18.0557427,
-            walkMinutes: 4,
-            walkIsEstimate: true,
-            priceMin: null,
-            priceMax: null,
-            vegetarian: "unknown",
-            vegetarianNote: "The official site shows pastries and bread but no lunch menu, so a vegetarian lunch dish is unconfirmed.",
-            vegetarianSource: "https://sockersucker.se/",
-            takeaway: "yes",
-            takeawayNote: "Official site invites customers to 'köp med dig nybakade bröd och bullar' (buy freshly baked bread and buns to take with you) at Drottninggatan 93.",
-            takeawaySource: "https://sockersucker.se/",
-            hoursSource: "Google Maps",
-            hoursCheckedAt: "9 November 2026",
-            hours: {
-                mon: [],
-                tue: ["08:00-18:00"],
-                wed: ["10:00-18:00"],
-                thu: ["08:00-18:00"],
-                fri: ["08:00-18:00"],
-                sat: ["10:00-17:00"],
-                sun: ["10:00-16:00"]
             }
         },
         {
@@ -2577,34 +2501,6 @@ window.LUNCH_WHEEL_DATA = {
             hours: null
         },
         {
-            id: "fabrique",
-            name: "Fabrique",
-            cuisine: "Bakery",
-            address: "Drottninggatan 102, Stockholm",
-            latitude: 59.3381753,
-            longitude: 18.0572997,
-            website: "https://fabrique.se",
-            walkMinutes: 3,
-            walkIsEstimate: true,
-            priceMin: null,
-            priceMax: null,
-            vegetarian: "unknown",
-            vegetarianNote: "Official site has no menu.",
-            takeaway: "unknown",
-            takeawayNote: "Official site has no ordering; no Wolt/Foodora listing found for Drottninggatan 102.",
-            hoursSource: "https://fabrique.se/locations/",
-            hoursCheckedAt: "11 November 2026",
-            hours: {
-                mon: ["07:30-18:00"],
-                tue: ["07:30-18:00"],
-                wed: ["07:30-18:00"],
-                thu: ["07:30-18:00"],
-                fri: ["07:30-18:00"],
-                sat: ["08:00-16:00"],
-                sun: ["10:00-16:00"]
-            }
-        },
-        {
             id: "hawaii-poke",
             name: "Hawaii Poké",
             cuisine: "Poke bowl (fast food)",
@@ -2845,7 +2741,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "tullen",
-            name: "Ölstugan Tullen Sveavägen",
+            name: "Ölstugan Tullen",
             cuisine: "Pub (Swedish food)",
             address: "Sveavägen 64, Stockholm",
             latitude: 59.3389609,
@@ -2908,7 +2804,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "westman",
-            name: "Restaurang Westmans (Westmanska Palatset)",
+            name: "Restaurang Westmans",
             cuisine: "Lunch restaurant (business lunch)",
             address: "Holländargatan 17, Stockholm",
             latitude: 59.337671,
@@ -3020,36 +2916,6 @@ window.LUNCH_WHEEL_DATA = {
                 fri: ["11:00-03:15"],
                 sat: ["11:00-03:15"],
                 sun: ["11:00-01:15"]
-            }
-        },
-        {
-            id: "espresso-house",
-            name: "Espresso House",
-            cuisine: "Cafe",
-            address: "Sveavägen 82, Stockholm",
-            unverified: true,
-            latitude: 59.3406303,
-            longitude: 18.0591084,
-            website: "https://www.espressohouse.se/",
-            walkMinutes: 4,
-            walkIsEstimate: true,
-            priceMin: null,
-            priceMax: null,
-            vegetarian: "unknown",
-            vegetarianNote: "Branch not confirmed; the chain sells vegetarian sandwiches but this location couldn't be verified.",
-            takeaway: "unknown",
-            takeawayNote: "Branch not confirmed; the chain offers app ordering and Wolt/Foodora delivery elsewhere.",
-            notice: "Might have closed or moved: there's no recent sign of it online, so check before going.",
-            hoursSource: "OpenStreetMap: https://www.openstreetmap.org/node/457817738",
-            hoursCheckedAt: "15 November 2025",
-            hours: {
-                mon: ["07:00-19:00"],
-                tue: ["07:00-19:00"],
-                wed: ["07:00-19:00"],
-                thu: ["07:00-19:00"],
-                fri: ["07:00-19:00"],
-                sat: ["09:00-19:00"],
-                sun: ["09:00-19:00"]
             }
         },
         {
@@ -3590,36 +3456,6 @@ window.LUNCH_WHEEL_DATA = {
             }
         },
         {
-            id: "s-t-paul-bageri",
-            name: "S:t Paul bageri",
-            cuisine: "Bakery",
-            address: "Wallingatan 7, Stockholm",
-            unverified: true,
-            latitude: 59.3371713,
-            longitude: 18.0579873,
-            website: "http://www.stpaulbageri.se",
-            walkMinutes: 5,
-            walkIsEstimate: true,
-            priceMin: null,
-            priceMax: null,
-            vegetarian: "unknown",
-            vegetarianNote: "No menu found.",
-            takeaway: "unknown",
-            takeawayNote: "No official information found.",
-            notice: "Might have closed or moved: there's no recent sign of it online, so check before going.",
-            hoursSource: "OpenStreetMap: https://www.openstreetmap.org/node/10093317829",
-            hoursCheckedAt: "2 December 2025",
-            hours: {
-                mon: ["07:00-19:00"],
-                tue: ["07:00-19:00"],
-                wed: ["07:00-19:00"],
-                thu: ["07:00-19:00"],
-                fri: ["07:00-19:00"],
-                sat: ["08:00-18:00"],
-                sun: ["08:00-18:00"]
-            }
-        },
-        {
             id: "sushi-n-go",
             name: "Sushi N Go",
             cuisine: "Sushi (fast food)",
@@ -3895,34 +3731,6 @@ window.LUNCH_WHEEL_DATA = {
             }
         },
         {
-            id: "eders-konditori-and-choklad",
-            name: "Eders konditori & Choklad",
-            cuisine: "Cafe",
-            address: "Barnhusgatan 1, Stockholm",
-            unverified: true,
-            latitude: 59.3364469,
-            longitude: 18.0582505,
-            walkMinutes: 6,
-            walkIsEstimate: true,
-            priceMin: null,
-            priceMax: null,
-            vegetarian: "unknown",
-            vegetarianNote: "No menu found.",
-            takeaway: "unknown",
-            takeawayNote: "No ordering listing or official site found.",
-            notice: "Might have closed or moved: there's no recent sign of it online, so check before going.",
-            hoursSource: "OpenStreetMap: https://www.openstreetmap.org/node/473586114",
-            hours: {
-                mon: ["06:30-16:00"],
-                tue: ["06:30-16:00"],
-                wed: ["06:30-16:00"],
-                thu: ["06:30-16:00"],
-                fri: ["06:30-16:00"],
-                sat: [],
-                sun: []
-            }
-        },
-        {
             id: "espresso-house-drottninggatan-90a",
             name: "Espresso House",
             cuisine: "Cafe",
@@ -4053,34 +3861,6 @@ window.LUNCH_WHEEL_DATA = {
             }
         },
         {
-            id: "le-violon-dingue",
-            name: "Le Violon Dingue",
-            cuisine: "Bakery",
-            address: "Olof Palmes Gata 12, Stockholm",
-            latitude: 59.3362985,
-            longitude: 18.0613944,
-            website: "http://www.leviolondingue.se/",
-            walkMinutes: 6,
-            walkIsEstimate: true,
-            priceMin: null,
-            priceMax: null,
-            vegetarian: "unknown",
-            vegetarianNote: "No menu found; HappyCow lists the bakery but that is not an official source.",
-            takeaway: "unknown",
-            takeawayNote: "No Wolt or Foodora listing or official takeaway information found.",
-            hoursSource: "http://www.leviolondingue.se/",
-            hoursCheckedAt: "11 November 2026",
-            hours: {
-                mon: ["07:00-16:00"],
-                tue: ["07:00-16:00"],
-                wed: ["07:00-16:00"],
-                thu: ["07:00-16:00"],
-                fri: ["07:00-16:00"],
-                sat: ["10:00-16:00"],
-                sun: []
-            }
-        },
-        {
             id: "lennart-and-bror-fisk",
             name: "Lennart & Bror Fisk",
             cuisine: "Seafood restaurant",
@@ -4102,28 +3882,6 @@ window.LUNCH_WHEEL_DATA = {
             takeawayNote: "No takeaway or ordering information found.",
             hoursSource: "OpenStreetMap's hours were wrong (Mon/Tue '23:00-22:00'); no official hours found",
             hoursCheckedAt: "11 November 2026",
-            hours: null
-        },
-        {
-            id: "muffin-bakery",
-            name: "Muffin Bakery",
-            cuisine: "Cafe",
-            address: "Drottninggatan 73A, Stockholm",
-            unverified: true,
-            latitude: 59.3367053,
-            longitude: 18.0584343,
-            website: "https://www.muffinbakery.se/",
-            walkMinutes: 6,
-            walkIsEstimate: true,
-            priceMin: null,
-            priceMax: null,
-            vegetarian: "unknown",
-            vegetarianNote: "No menu found.",
-            takeaway: "unknown",
-            takeawayNote: "No ordering listing found.",
-            notice: "Might have closed or moved: there's no recent sign of it online, so check before going.",
-            hoursSource: "OpenStreetMap: https://www.openstreetmap.org/node/473583502",
-            hoursCheckedAt: "19 March 2025",
             hours: null
         },
         {
@@ -4561,7 +4319,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "brisket-and-friends-city",
-            name: "Brisket & Friends City",
+            name: "Brisket & Friends",
             cuisine: "American/Barbecue restaurant",
             address: "Upplandsgatan 7, Stockholm",
             latitude: 59.3367454,
@@ -4692,7 +4450,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "greasy-spoon-drottninggatan-71a",
-            name: "Greasy Spoon City",
+            name: "Greasy Spoon",
             cuisine: "Brunch cafe",
             address: "Drottninggatan 71A, Stockholm",
             latitude: 59.3359652,
@@ -4915,7 +4673,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "saya-sushi",
-            name: "Saya Sushi Hötorget",
+            name: "Saya Sushi",
             cuisine: "Sushi restaurant",
             address: "Olofsgatan 6, Stockholm",
             latitude: 59.3361216,
@@ -4991,7 +4749,7 @@ window.LUNCH_WHEEL_DATA = {
             walkIsEstimate: true,
             priceMin: 70,
             priceMax: 171,
-            priceNote: "Slice 70 kr; 2 Slice 'n Drink 141 kr; 3 Slice 'n Drink 171 kr (whole pies 342-382 kr).",
+            priceNote: "Slice 70 kr; 2 Slice 'n Drink 141 kr; 3 Slice 'n Drink 171 kr.",
             priceSource: "https://www.ubereats.com/en-SE/stockholm/food-delivery/slice-of-new-york/8rGEYR4LTMK6HhirPkkc1w/",
             priceCheckedAt: "11 November 2026",
             vegetarian: "yes",
@@ -5385,7 +5143,7 @@ window.LUNCH_WHEEL_DATA = {
             walkIsEstimate: true,
             priceMin: 2200,
             priceMax: 2200,
-            priceNote: "Tasting menu 2,200 kr, prepaid when booking; drinks extra.",
+            priceNote: "Tasting menu 2,200 kr, prepaid when booking.",
             priceSource: "https://restaurantnana.com",
             priceCheckedAt: "11 November 2026",
             vegetarian: "unknown",
@@ -5432,7 +5190,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "pitcher-s",
-            name: "Pitcher's Norrmalm",
+            name: "Pitcher's",
             cuisine: "Pub",
             address: "Regeringsgatan 113, Stockholm",
             latitude: 59.3406203,
@@ -5462,7 +5220,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "posto",
-            name: "Posto Hötorget",
+            name: "Posto",
             cuisine: "Italian restaurant (pasta)",
             address: "Holländargatan 1, Stockholm",
             latitude: 59.3353002,
@@ -6309,33 +6067,6 @@ window.LUNCH_WHEEL_DATA = {
             hours: null
         },
         {
-            id: "fabrique-kungsgatan-47",
-            name: "Fabrique",
-            cuisine: "Cafe (Bakery)",
-            address: "Kungsgatan 47, Stockholm",
-            latitude: 59.3348101,
-            longitude: 18.0610582,
-            walkMinutes: 10,
-            walkIsEstimate: true,
-            priceMin: null,
-            priceMax: null,
-            vegetarian: "unknown",
-            vegetarianNote: "No menu published on the official site.",
-            takeaway: "unknown",
-            takeawayNote: "No ordering listing found for this branch.",
-            hoursSource: "https://fabrique.se/locations/",
-            hoursCheckedAt: "11 November 2026",
-            hours: {
-                mon: ["07:30-18:30"],
-                tue: ["07:30-18:30"],
-                wed: ["07:30-18:30"],
-                thu: ["07:30-18:30"],
-                fri: ["07:30-18:30"],
-                sat: ["10:00-16:00"],
-                sun: []
-            }
-        },
-        {
             id: "fika-113",
             name: "Fika 113",
             cuisine: "Cafe",
@@ -6869,7 +6600,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "espresso-house-kungsgatan-43",
-            name: "Espresso House Konserthuset",
+            name: "Espresso House",
             cuisine: "Cafe (Coffee chain)",
             address: "Kungsgatan 43, Stockholm",
             latitude: 59.3351563,
@@ -7188,7 +6919,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "lao-lao-city",
-            name: "Lao Lao City",
+            name: "Lao Lao",
             cuisine: "Chinese restaurant",
             address: "Barnhusgatan 20, Stockholm",
             latitude: 59.3355184,
@@ -8673,7 +8404,7 @@ window.LUNCH_WHEEL_DATA = {
             walkIsEstimate: true,
             priceMin: 3500,
             priceMax: 3500,
-            priceNote: "Seasonal tasting menu only, 3,500 kr (wine pairing from 2,000 kr).",
+            priceNote: "Seasonal tasting menu only, 3,500 kr.",
             priceSource: "https://adamalbin.se/menu",
             priceCheckedAt: "11 November 2026",
             vegetarian: "unknown",
@@ -8901,36 +8632,6 @@ window.LUNCH_WHEEL_DATA = {
             }
         },
         {
-            id: "brot",
-            name: "Brot",
-            cuisine: "Cafe (Bakery)",
-            address: "Odengatan 43, Stockholm",
-            unverified: true,
-            latitude: 59.344334,
-            longitude: 18.0575551,
-            website: "http://brot-stockholm.se/",
-            walkMinutes: 13,
-            walkIsEstimate: true,
-            priceMin: null,
-            priceMax: null,
-            vegetarian: "unknown",
-            vegetarianNote: "Not checked yet.",
-            takeaway: "unknown",
-            takeawayNote: "Not checked yet.",
-            notice: "Might have closed or moved: there's no recent sign of it online, so check before going.",
-            hoursSource: "OpenStreetMap: https://www.openstreetmap.org/node/1518434575",
-            hoursCheckedAt: "15 November 2025",
-            hours: {
-                mon: ["07:00-18:00"],
-                tue: ["07:00-18:00"],
-                wed: ["07:00-18:00"],
-                thu: ["07:00-18:00"],
-                fri: ["07:00-18:00"],
-                sat: ["08:00-16:00"],
-                sun: ["08:00-16:00"]
-            }
-        },
-        {
             id: "brunkebergs-bageri",
             name: "Brunkebergs Bageri",
             cuisine: "Cafe (Bakery)",
@@ -9146,62 +8847,6 @@ window.LUNCH_WHEEL_DATA = {
             }
         },
         {
-            id: "fabrique-odengatan-42",
-            name: "Fabrique",
-            cuisine: "Cafe (Bakery)",
-            address: "Odengatan 42, Stockholm",
-            latitude: 59.3446339,
-            longitude: 18.0573513,
-            website: "https://fabrique.se/",
-            walkMinutes: 13,
-            walkIsEstimate: true,
-            priceMin: null,
-            priceMax: null,
-            vegetarian: "unknown",
-            vegetarianNote: "Not checked yet.",
-            takeaway: "unknown",
-            takeawayNote: "Not checked yet.",
-            hoursSource: "https://fabrique.se/locations/",
-            hoursCheckedAt: "11 November 2026",
-            hours: {
-                mon: ["07:30-18:00"],
-                tue: ["07:30-18:00"],
-                wed: ["07:30-18:00"],
-                thu: ["07:30-18:00"],
-                fri: ["07:30-18:00"],
-                sat: ["08:00-17:00"],
-                sun: ["08:00-17:00"]
-            }
-        },
-        {
-            id: "fabrique-odengatan-77",
-            name: "Fabrique",
-            cuisine: "Cafe (Bakery)",
-            address: "Odengatan 77, Stockholm",
-            latitude: 59.3423228,
-            longitude: 18.0493753,
-            website: "https://fabrique.se",
-            walkMinutes: 13,
-            walkIsEstimate: true,
-            priceMin: null,
-            priceMax: null,
-            vegetarian: "unknown",
-            vegetarianNote: "Not checked yet.",
-            takeaway: "unknown",
-            takeawayNote: "Not checked yet.",
-            hoursSource: "https://fabrique.se/locations/",
-            hoursCheckedAt: "11 November 2026",
-            hours: {
-                mon: ["07:30-18:30"],
-                tue: ["07:30-18:30"],
-                wed: ["07:30-18:30"],
-                thu: ["07:30-18:30"],
-                fri: ["07:30-18:30"],
-                sat: ["08:00-17:00"],
-                sun: ["08:00-17:00"]
-            }
-        },
-        {
             id: "falafel-stockholm",
             name: "Falafel Stockholm",
             cuisine: "Falafel (fast food)",
@@ -9289,7 +8934,7 @@ window.LUNCH_WHEEL_DATA = {
             walkIsEstimate: true,
             priceMin: 5500,
             priceMax: 5500,
-            priceNote: "Fixed tasting menu 5,500 kr per guest, same at lunch and dinner; drinks pairings extra.",
+            priceNote: "Fixed tasting menu 5,500 kr per guest, same at lunch and dinner.",
             priceSource: "https://www.restaurantfrantzen.com",
             priceCheckedAt: "11 November 2026",
             vegetarian: "unknown",
@@ -9737,34 +9382,6 @@ window.LUNCH_WHEEL_DATA = {
             }
         },
         {
-            id: "oolong-tea-house",
-            name: "Oolong Tea House",
-            cuisine: "Cafe (Bubble tea/Cake)",
-            address: "Sveavägen 20, Stockholm",
-            latitude: 59.3346399,
-            longitude: 18.0649118,
-            website: "https://oolongteahouse.se/",
-            walkMinutes: 13,
-            walkIsEstimate: true,
-            priceMin: null,
-            priceMax: null,
-            vegetarian: "unknown",
-            vegetarianNote: "Official site blocked; mainly bubble tea drinks.",
-            takeaway: "unknown",
-            takeawayNote: "Listed on Wolt (delivery); pickup not confirmed, official site blocked.",
-            hoursSource: "OpenStreetMap: https://www.openstreetmap.org/node/6855464571",
-            hoursCheckedAt: "15 November 2025",
-            hours: {
-                mon: ["11:00-19:00"],
-                tue: ["11:00-19:00"],
-                wed: ["11:00-19:00"],
-                thu: ["11:00-19:00"],
-                fri: ["11:00-19:00"],
-                sat: ["11:00-19:00"],
-                sun: ["11:00-19:00"]
-            }
-        },
-        {
             id: "reload-foodbar",
             name: "Reload Foodbar",
             cuisine: "Salad (fast food)",
@@ -9791,37 +9408,6 @@ window.LUNCH_WHEEL_DATA = {
                 fri: ["10:00-20:00"],
                 sat: ["11:00-18:00"],
                 sun: ["11:00-18:00"]
-            }
-        },
-        {
-            id: "ritorno",
-            name: "Ritorno",
-            cuisine: "Cafe (Bakery)",
-            address: "Torsgatan 20, Stockholm",
-            latitude: 59.3362795,
-            longitude: 18.0485274,
-            website: "https://www.ritorno.se/",
-            walkMinutes: 13,
-            walkIsEstimate: true,
-            priceMin: null,
-            priceMax: null,
-            vegetarian: "unknown",
-            vegetarianNote: "No menu published for the Torsgatan shop; Odengatan branch has a vegetarian grilled cheese.",
-            vegetarianSource: "https://www.ritorno.se/meny",
-            takeaway: "yes",
-            takeawayNote: "Bakery shop (bageri/butik) selling food to take with you.",
-            takeawaySource: "https://www.ritorno.se/",
-            notice: "Bakery shop rather than a sit-down café. Site gives conflicting Saturday hours (closed vs 08:00-15:00).",
-            hoursSource: "https://www.ritorno.se/",
-            hoursCheckedAt: "11 November 2026",
-            hours: {
-                mon: ["07:00-16:00"],
-                tue: ["07:00-16:00"],
-                wed: ["07:00-16:00"],
-                thu: ["07:00-16:00"],
-                fri: ["07:00-16:00"],
-                sat: [],
-                sun: []
             }
         },
         {
@@ -10353,32 +9939,6 @@ window.LUNCH_WHEEL_DATA = {
             }
         },
         {
-            id: "tva-systrars-bageri",
-            name: "Två systrars bageri",
-            cuisine: "Cafe (Bakery)",
-            address: "Regeringsgatan 91, Stockholm",
-            latitude: 59.337963,
-            longitude: 18.0671116,
-            walkMinutes: 13,
-            walkIsEstimate: true,
-            priceMin: null,
-            priceMax: null,
-            vegetarian: "unknown",
-            vegetarianNote: "No official menu found.",
-            takeaway: "unknown",
-            takeawayNote: "Thatsup reviews say there is almost no seating, so most buy to take away; no official source.",
-            hoursSource: "OpenStreetMap: https://www.openstreetmap.org/node/11174532937",
-            hours: {
-                mon: ["07:30-16:00"],
-                tue: ["07:30-16:00"],
-                wed: ["07:30-16:00"],
-                thu: ["07:30-16:00"],
-                fri: ["07:30-16:00"],
-                sat: ["09:00-16:00"],
-                sun: []
-            }
-        },
-        {
             id: "watami",
             name: "Watami",
             cuisine: "Sushi (fast food)",
@@ -10409,7 +9969,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "ai-ramen-klara",
-            name: "Ai Ramen Klara",
+            name: "Ai Ramen",
             cuisine: "Ramen restaurant",
             address: "Gamla Brogatan 27, Stockholm",
             latitude: 59.3333979,
@@ -10590,7 +10150,7 @@ window.LUNCH_WHEEL_DATA = {
             walkIsEstimate: true,
             priceMin: 79,
             priceMax: 109,
-            priceNote: "Snacks only (Wolt): Onigiri spicy tuna 79 kr, Banh mi paté 89 kr, Banh mi paté pork 109 kr; bubble tea ~69-79 kr.",
+            priceNote: "Snacks only (Wolt): Onigiri spicy tuna 79 kr, Banh mi paté 89 kr, Banh mi paté pork 109 kr.",
             priceSource: "https://wolt.com/sv/swe/stockholm/restaurant/chatime-stockholm",
             priceCheckedAt: "11 November 2026",
             vegetarian: "unknown",
@@ -10610,34 +10170,6 @@ window.LUNCH_WHEEL_DATA = {
                 fri: ["11:30-19:30"],
                 sat: ["11:30-19:30"],
                 sun: ["11:30-19:30"]
-            }
-        },
-        {
-            id: "chokladfabriken",
-            name: "Chokladfabriken",
-            cuisine: "Cafe (Chocolate shop)",
-            address: "Regeringsgatan 58, Stockholm",
-            latitude: 59.3357394,
-            longitude: 18.067774,
-            walkMinutes: 14,
-            walkIsEstimate: true,
-            priceMin: null,
-            priceMax: null,
-            vegetarian: "unknown",
-            vegetarianNote: "No food menu found; chocolate, hot chocolate and cake.",
-            takeaway: "unknown",
-            takeawayNote: "Chocolate shop; no official info on takeaway food.",
-            notice: "Chocolate shop with hot chocolate and cake; no lunch.",
-            hoursSource: "https://www.chokladfabriken.com/butiker",
-            hoursCheckedAt: "11 November 2026",
-            hours: {
-                mon: ["10:00-18:00"],
-                tue: ["10:00-18:00"],
-                wed: ["10:00-18:00"],
-                thu: ["10:00-18:00"],
-                fri: ["10:00-18:00"],
-                sat: ["11:00-17:00"],
-                sun: []
             }
         },
         {
@@ -10667,35 +10199,6 @@ window.LUNCH_WHEEL_DATA = {
                 fri: ["06:30-20:00"],
                 sat: ["07:00-20:00"],
                 sun: ["07:00-20:00"]
-            }
-        },
-        {
-            id: "fabrique-vasagatan-44",
-            name: "Fabrique",
-            cuisine: "Cafe (Bakery)",
-            address: "Vasagatan 44, Stockholm",
-            latitude: 59.3335623,
-            longitude: 18.0569823,
-            website: "https://fabrique.se",
-            walkMinutes: 14,
-            walkIsEstimate: true,
-            priceMin: null,
-            priceMax: null,
-            vegetarian: "unknown",
-            vegetarianNote: "No menu published on the official site.",
-            takeaway: "unknown",
-            takeawayNote: "Official site only offers orders ready the next day; no same-day ordering found.",
-            takeawaySource: "https://fabrique.se/locations/",
-            hoursSource: "https://fabrique.se/locations/",
-            hoursCheckedAt: "11 November 2026",
-            hours: {
-                mon: ["07:00-18:00"],
-                tue: ["07:00-18:00"],
-                wed: ["07:00-18:00"],
-                thu: ["07:00-18:00"],
-                fri: ["07:00-18:00"],
-                sat: ["10:00-16:00"],
-                sun: []
             }
         },
         {
@@ -10860,8 +10363,8 @@ window.LUNCH_WHEEL_DATA = {
             walkMinutes: 14,
             walkIsEstimate: true,
             priceMin: 105,
-            priceMax: 129,
-            priceNote: "Grilled sandwich 105 kr, Västerbotten pie with salad and coffee 105 kr, breakfast/fika package 109-129 kr.",
+            priceMax: 105,
+            priceNote: "Grilled sandwich 105 kr, Västerbotten pie with salad and coffee 105 kr.",
             priceSource: "https://javawhiskers.se/meny",
             priceCheckedAt: "11 November 2026",
             vegetarian: "yes",
@@ -11005,7 +10508,7 @@ window.LUNCH_WHEEL_DATA = {
             walkIsEstimate: true,
             priceMin: 199,
             priceMax: 209,
-            priceNote: "Wolt menu: Mr Burrito 2.0 199 kr, Mr Burrito 209 kr, Stax on Stax fries 99 kr.",
+            priceNote: "Wolt menu: Mr Burrito 2.0 199 kr, Mr Burrito 209 kr.",
             priceSource: "https://wolt.com/sv/swe/stockholm/restaurant/mr-burrito-friends",
             priceCheckedAt: "11 November 2026",
             vegetarian: "unknown",
@@ -11537,7 +11040,7 @@ window.LUNCH_WHEEL_DATA = {
             walkIsEstimate: true,
             priceMin: 149,
             priceMax: 179,
-            priceNote: "Little cheeseburger 149 kr, hamburger 159 kr, cheeseburger 179 kr (Foodora 'Five Guys City' prices; fries extra from 89 kr).",
+            priceNote: "Little cheeseburger 149 kr, hamburger 159 kr, cheeseburger 179 kr (Foodora 'Five Guys City' prices).",
             priceSource: "https://www.foodora.se/en/restaurant/kqll/five-guys-city",
             priceCheckedAt: "11 November 2026",
             vegetarian: "unknown",
@@ -12749,7 +12252,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "espresso-house-drottninggatan-35",
-            name: "Espresso House Drottninggatan Plattan",
+            name: "Espresso House",
             cuisine: "Cafe",
             address: "Drottninggatan 35, Stockholm",
             latitude: 59.3317973,
@@ -13079,7 +12582,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "max-kungsgatan-4b",
-            name: "MAX Kungsgatan 4",
+            name: "Max",
             cuisine: "Burger (fast food)",
             address: "Kungsgatan 4A, Stockholm",
             latitude: 59.3362166,
@@ -13109,7 +12612,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "max-sergelgatan-1",
-            name: "MAX på Sergels torg",
+            name: "Max",
             cuisine: "Burger (fast food)",
             address: "Sergelgatan 1, Stockholm",
             latitude: 59.3329681,
@@ -14202,7 +13705,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "phil-s-burger",
-            name: "Phil's Sergel",
+            name: "Phil's Burger",
             cuisine: "Burger restaurant",
             address: "Malmskillnadsgatan 11, Stockholm",
             latitude: 59.33285,
@@ -14211,8 +13714,8 @@ window.LUNCH_WHEEL_DATA = {
             walkMinutes: 17,
             walkIsEstimate: true,
             priceMin: 135,
-            priceMax: 169,
-            priceNote: "Weekday lunch from 135 kr including fries/salad, coffee and coleslaw. Dinner prices: Phil's 150g 139 kr, Halloumi burger 139 kr, Phil's sallad 169 kr.",
+            priceMax: 135,
+            priceNote: "Weekday lunch from 135 kr including fries/salad, coffee and coleslaw.",
             priceSource: "https://www.phils.se/meny/",
             priceCheckedAt: "11 November 2026",
             vegetarian: "yes",
@@ -14841,33 +14344,6 @@ window.LUNCH_WHEEL_DATA = {
             }
         },
         {
-            id: "guld",
-            name: "Frost Bageri Vasaparken",
-            cuisine: "Cafe (Bakery)",
-            address: "Eastmansvägen 10, Stockholm",
-            latitude: 59.3397078,
-            longitude: 18.0439717,
-            walkMinutes: 18,
-            walkIsEstimate: true,
-            priceMin: null,
-            priceMax: null,
-            vegetarian: "unknown",
-            vegetarianNote: "No menu published.",
-            takeaway: "unknown",
-            takeawayNote: "No ordering or takeaway info found.",
-            hoursSource: "https://sven-harrys.se/frost-bageri/",
-            hoursCheckedAt: "11 November 2026",
-            hours: {
-                mon: ["07:30-18:00"],
-                tue: ["07:30-18:00"],
-                wed: ["07:30-18:00"],
-                thu: ["07:30-18:00"],
-                fri: ["07:30-18:00"],
-                sat: ["08:00-17:00"],
-                sun: ["08:00-17:00"]
-            }
-        },
-        {
             id: "holiday",
             name: "Holiday",
             cuisine: "Asian buffet restaurant",
@@ -15004,36 +14480,6 @@ window.LUNCH_WHEEL_DATA = {
             hoursSource: "http://www.lillaego.com",
             hoursCheckedAt: "11 November 2026",
             hours: null
-        },
-        {
-            id: "nk-art-bakery",
-            name: "NK Art Bakery",
-            cuisine: "Cafe (Bakery)",
-            address: "Regeringsgatan 47, Stockholm",
-            latitude: 59.333289,
-            longitude: 18.0676543,
-            website: "https://www.artbakery.se/",
-            walkMinutes: 18,
-            walkIsEstimate: true,
-            priceMin: null,
-            priceMax: null,
-            vegetarian: "unknown",
-            vegetarianNote: "Official site lists no menu or dietary info.",
-            vegetarianSource: "https://www.artbakery.se/",
-            takeaway: "yes",
-            takeawayNote: "Bakery sells fresh bread and buns to take away; pre-orders also possible.",
-            takeawaySource: "https://www.artbakery.se/",
-            hoursSource: "https://www.artbakery.se/",
-            hoursCheckedAt: "11 November 2026",
-            hours: {
-                mon: ["07:30-19:00"],
-                tue: ["07:30-19:00"],
-                wed: ["07:30-19:00"],
-                thu: ["07:30-19:00"],
-                fri: ["07:30-19:00"],
-                sat: ["10:00-18:00"],
-                sun: ["11:00-17:00"]
-            }
         },
         {
             id: "nk-korv-and-glass",
@@ -15320,7 +14766,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "taco-bar-kungsgatan-3",
-            name: "Taco Bar Stureplan",
+            name: "Taco Bar",
             cuisine: "Tex-Mex (fast food)",
             address: "Kungsgatan 3, Stockholm",
             latitude: 59.3360401,
@@ -15539,35 +14985,6 @@ window.LUNCH_WHEEL_DATA = {
             }
         },
         {
-            id: "bergstrands-bageri",
-            name: "Bergstrands Bageri",
-            cuisine: "Cafe (Bakery)",
-            address: "Frejgatan 46A, Stockholm",
-            latitude: 59.3443172,
-            longitude: 18.0448409,
-            website: "https://bergstrandsbageri.se/",
-            walkMinutes: 19,
-            walkIsEstimate: true,
-            priceMin: null,
-            priceMax: null,
-            vegetarian: "unknown",
-            vegetarianNote: "No menu with dishes found; bakery goods only mentioned.",
-            takeaway: "unknown",
-            takeawayNote: "Artisan bakery with outdoor seating; site doesn't mention takeaway or online ordering (orders by email only).",
-            notice: "Bakery: buns and pastries, no lunch menu found.",
-            hoursSource: "https://bergstrandsbageri.se/",
-            hoursCheckedAt: "12 November 2026",
-            hours: {
-                mon: ["07:00-18:00"],
-                tue: ["07:00-18:00"],
-                wed: ["07:00-18:00"],
-                thu: ["07:00-18:00"],
-                fri: ["07:00-18:00"],
-                sat: ["08:00-17:00"],
-                sun: ["08:00-16:00"]
-            }
-        },
-        {
             id: "bistro-bkh",
             name: "Bistro BKH",
             cuisine: "Cafe (Lunch)",
@@ -15726,34 +15143,6 @@ window.LUNCH_WHEEL_DATA = {
                 fri: ["07:00-20:00"],
                 sat: ["08:00-20:00"],
                 sun: ["08:00-20:00"]
-            }
-        },
-        {
-            id: "fabrique-klarabergsgatan-60",
-            name: "Fabrique",
-            cuisine: "Cafe (Bakery)",
-            address: "Klarabergsgatan 60, Stockholm",
-            latitude: 59.3317342,
-            longitude: 18.0597065,
-            website: "https://fabrique.se",
-            walkMinutes: 19,
-            walkIsEstimate: true,
-            priceMin: null,
-            priceMax: null,
-            vegetarian: "unknown",
-            vegetarianNote: "No menu with dishes found.",
-            takeaway: "unknown",
-            takeawayNote: "Site only mentions collecting pre-orders in store (lead time unclear); no Wolt/Foodora listing found.",
-            hoursSource: "https://fabrique.se/locations/",
-            hoursCheckedAt: "12 November 2026",
-            hours: {
-                mon: ["07:00-19:00"],
-                tue: ["07:00-19:00"],
-                wed: ["07:00-19:00"],
-                thu: ["07:00-19:00"],
-                fri: ["07:00-19:00"],
-                sat: ["08:00-18:00"],
-                sun: ["08:00-18:00"]
             }
         },
         {
@@ -16100,7 +15489,7 @@ window.LUNCH_WHEEL_DATA = {
         },
         {
             id: "pong-klara-tvargrand-5",
-            name: "Pong Klara",
+            name: "Pong",
             cuisine: "Asian buffet restaurant",
             address: "Klara Tvärgränd 5, Stockholm",
             latitude: 59.3304783,

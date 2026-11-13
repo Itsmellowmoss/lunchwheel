@@ -6,7 +6,7 @@
     const STORAGE_KEY = "lunch-wheel-custom-restaurants-v1";
     const HIDDEN_KEY = "lunch-wheel-hidden-restaurants-v1";
     const EDITED_KEY = "lunch-wheel-edited-restaurants-v1";
-    const OSM_CACHE_KEY = "lunch-wheel-osm-cache-v2";
+    const OSM_CACHE_KEY = "lunch-wheel-osm-cache-v3"; // v3: map-only bakeries are left out
     const OSM_CACHE_MAX_AGE = 2 * 60 * 60 * 1000;
     const OVERPASS_URL = "https://overpass.kumi.systems/api/interpreter";
     // Reviews are shared with lunchbot (the Slack bot): this is its reviews address on Vercel, e.g.
@@ -17,25 +17,11 @@
     const SEARCH_RADIUS_METERS = 1400;
     const ORIGIN_COORDINATES = [59.3395657, 18.0592044];
     const CATEGORIES = ["Restaurant", "Cafe", "Fast food", "Bakery", "Sandwich shop", "Takeaway", "Brunch"];
-    const COLORS = [
-        "#f5a04f", "#77b7a3", "#f06f55", "#8eaa6b",
-        "#e7c356", "#c96f4a", "#df806f", "#77a9c5",
-        "#ed873f", "#649d79", "#f18d68", "#adba61",
-        "#d9a83f", "#b95640", "#6eaebb", "#e2a0a0"
-    ];
-    const COLOR_BY_ID = new Map([
-        ["fullmoon-wok", 0],
-        ["mowglis-kok", 1],
-        ["minako-sushi-odenplan", 4],
-        ["eatnam", 2],
-        ["crispy-pizza-bistro-vasastan", 7],
-        ["tranan", 5],
-        ["frankys-vasastaden", 6]
-    ]);
     const NAME_COLLATOR = new Intl.Collator("sv", { sensitivity: "base", numeric: true });
     const WHEEL = document.querySelector("#wheel");
     const CONTEXT = WHEEL.getContext("2d");
     const WHEEL_TOOLTIP = document.querySelector("#wheel-tooltip");
+    const WHEEL_TICKER = document.querySelector("#wheel-ticker");
     const SPIN_BUTTON = document.querySelector("#spin");
     const RESULT = document.querySelector("#result");
     const WINNER_DETAILS = document.querySelector("#winner-details");
@@ -45,9 +31,7 @@
     const CLEAR_WHEEL_FILTERS = document.querySelector("#clear-wheel-filters");
     const OPTION_LIST = document.querySelector("#option-list");
     const OPTION_COUNT = document.querySelector("#option-count");
-    const DATA_NOTE = document.querySelector("#data-note");
-    const REFRESH_BUTTON = document.querySelector("#refresh-data");
-    const REFRESH_BUTTON_LABEL = REFRESH_BUTTON.innerHTML;
+    const TOAST = document.querySelector("#toast");
     const FORM = document.querySelector("#add-form");
     const FORM_MESSAGE = document.querySelector("#form-message");
     const FILTERS = {
@@ -67,7 +51,6 @@
     let editedRestaurants = [];
     let hiddenIds = [];
     let eligibleRestaurants = [];
-    let restaurantColors = new Map();
     let rotation = 0;
     let hoveredRestaurantIndex = -1;
     let spinning = false;
@@ -297,6 +280,11 @@
         const isExplicitlyExcludedForLunch = (data.lunchExcludedNames || [])
             .some((name) => normalizeName(name) === normalizeName(restaurant.name));
         if (isExplicitlyExcludedForLunch) return false;
+        // Single branches left out on purpose (other branches of the same name stay), matched by name and location
+        const isExcludedBranch = (data.lunchExcludedPlaces || []).some((place) => namesMatch(place.name, restaurant.name)
+            && Number.isFinite(restaurant.latitude) && Number.isFinite(restaurant.longitude)
+            && distanceInMeters(restaurant.latitude, restaurant.longitude, place.latitude, place.longitude) <= 100);
+        if (isExcludedBranch) return false;
 
         const searchTerm = normalizeName(FILTERS.search.value.trim());
         if (searchTerm) {
@@ -318,7 +306,9 @@
         if (maxWalk && (!restaurant.walkMinutes || restaurant.walkMinutes > maxWalk)) return false;
 
         const maxPrice = Number(FILTERS.price.value);
-        if (maxPrice && (restaurant.priceMax == null || restaurant.priceMax > maxPrice)) return false;
+        // A place fits if its cheapest lunch does (Mister York's 59 kr meal fits "120 kr" even though others cost 139)
+        const cheapest = restaurant.priceMin ?? restaurant.priceMax;
+        if (maxPrice && (cheapest == null || cheapest > maxPrice)) return false;
         return true;
     }
 
@@ -327,11 +317,27 @@
             && matchesOtherFilters(restaurant, now));
     }
 
+    // How much we know about a place: known hours, prices, a menu, vegetarian info and reviews all count
+    function informationScore(restaurant) {
+        let score = 0;
+        if (restaurant.hours) score += 2;
+        if (restaurant.priceMin != null || restaurant.priceMax != null) score += 2;
+        if (restaurant.priceNote) score += 1;
+        if (restaurant.vegetarian === "yes" || restaurant.vegetarian === "no") score += 1;
+        if (reviewSummaries.has(restaurant.id)) score += 1;
+        if (restaurant.unverified) score -= 1;
+        return score;
+    }
+
+    // Places with the most information first; closed places stay at the bottom
     function compareByRelevance(first, second, now) {
         const statusOrder = { open: 0, unknown: 1, closed: 2 };
-        const firstOrder = statusOrder[getStatus(first, now).state];
-        const secondOrder = statusOrder[getStatus(second, now).state];
-        return firstOrder - secondOrder || compareRestaurants(first, second);
+        const firstState = getStatus(first, now).state;
+        const secondState = getStatus(second, now).state;
+        return (firstState === "closed") - (secondState === "closed")
+            || informationScore(second) - informationScore(first)
+            || statusOrder[firstState] - statusOrder[secondState]
+            || compareRestaurants(first, second);
     }
 
     function directionsUrl(restaurant) {
@@ -349,7 +355,65 @@
         return NAME_COLLATOR.compare(first.name, second.name) || first.id.localeCompare(second.id);
     }
 
+    // Chains: "Espresso House Odenplan", "Espresso House" and "Bröd & Salt - Sveavägen" are branches of one brand.
+    // Branches of a brand share one card in the list and one slice on the wheel.
+    const AREA_WORDS = new Set(["odenplan", "vasastan", "vasastaden", "city", "stureplan", "hotorget", "konserthuset",
+        "plattan", "norrmalm", "centralen", "sergels", "torg", "centrum"]);
+    let streetWords = null;
+    let brands = new Map(); // brand key -> { name, count }
+    const selectedBranches = new Map(); // brand key -> id of the branch picked in the list
+    const openCards = new Set(); // brand keys of the lunch spots opened in the list (they stay open when it re-renders)
+
+    function brandKey(restaurant) {
+        streetWords ||= new Set(data.restaurants
+            .map((place) => normalizeName((place.address || "").split(/\d/)[0]).split(" ")[0])
+            .filter((word) => word.length > 3));
+        const words = normalizeName(restaurant.name.split(/\s+[-–—|]\s+/)[0]).split(" ");
+        while (words.length > 1 && (AREA_WORDS.has(words.at(-1)) || streetWords.has(words.at(-1)) || /^\d+[a-z]?$/.test(words.at(-1)))) {
+            words.pop();
+        }
+        return words.join(" ");
+    }
+
+    function buildBrands() {
+        brands = new Map();
+        for (const restaurant of restaurants) {
+            if (hiddenIds.includes(restaurant.id)) continue;
+            const key = brandKey(restaurant);
+            const name = restaurant.name.split(/\s+[-–—|]\s+/)[0].trim();
+            const brand = brands.get(key);
+            if (!brand) brands.set(key, { name, count: 1 });
+            else {
+                brand.count += 1;
+                if (name.length < brand.name.length) brand.name = name;
+            }
+        }
+    }
+
+    const isChain = (restaurant) => (brands.get(brandKey(restaurant))?.count || 0) > 1;
+    const shortAddress = (restaurant) => (restaurant.address || "").split(",")[0].trim();
+
+    // The filtered places as brands: [[branch, branch…], …] in list order, one branch per address
+    function groupBranches(places) {
+        const groups = new Map();
+        for (const place of places) {
+            const key = brandKey(place);
+            const group = groups.get(key) || groups.set(key, []).get(key);
+            const address = normalizeName(place.address || place.id);
+            if (!group.some((other) => normalizeName(other.address || other.id) === address)) group.push(place);
+        }
+        return [...groups.values()];
+    }
+
+    // The branch a brand shows: the one picked in the list, otherwise the nearest
+    function pickBranch(branches) {
+        const selected = branches.find((branch) => branch.id === selectedBranches.get(brandKey(branch)));
+        if (selected) return selected;
+        return [...branches].sort((a, b) => (a.walkMinutes ?? 999) - (b.walkMinutes ?? 999))[0];
+    }
+
     function displayRestaurantName(restaurant) {
+        if (isChain(restaurant)) return brands.get(brandKey(restaurant)).name;
         return restaurant.name.replace(/\s*(?:[-–—,]\s*|\s+)(?:Odenplan|Vasastaden|Vasastan)$/i, "").trim();
     }
 
@@ -380,47 +444,6 @@
 
         if (line) lines.push(line);
         return lines.length ? lines : [value];
-    }
-
-    function colorForRestaurant(restaurant) {
-        const color = restaurantColors.get(restaurant.id);
-        if (color) return color;
-        const assignedColor = COLOR_BY_ID.get(restaurant.id);
-        if (assignedColor !== undefined) return COLORS[assignedColor];
-        return COLORS[0];
-    }
-
-    function assignRestaurantColors() {
-        const usedIndexes = new Set(COLOR_BY_ID.values());
-        restaurantColors = new Map();
-
-        for (const restaurant of restaurants) {
-            const index = COLOR_BY_ID.get(restaurant.id);
-            if (index !== undefined) restaurantColors.set(restaurant.id, COLORS[index]);
-        }
-
-        let nextIndex = 0;
-        const additionalRestaurants = [...restaurants].sort(compareRestaurants);
-        for (const restaurant of additionalRestaurants) {
-            if (restaurantColors.has(restaurant.id)) continue;
-            while (usedIndexes.has(nextIndex)) nextIndex += 1;
-            if (nextIndex < COLORS.length) {
-                restaurantColors.set(restaurant.id, COLORS[nextIndex]);
-                usedIndexes.add(nextIndex);
-                nextIndex += 1;
-            } else {
-                const extraIndex = nextIndex - COLORS.length;
-                const families = [24, 34, 43, 14, 5, 96, 112, 132, 190, 202, 350, 52];
-                const cycle = Math.floor(extraIndex / families.length);
-                const saturation = 56 + cycle % 23;
-                const lightness = 54 + Math.floor(cycle / 23) % 25;
-                restaurantColors.set(
-                    restaurant.id,
-                    `hsl(${families[extraIndex % families.length]} ${saturation}% ${lightness}%)`
-                );
-                nextIndex += 1;
-            }
-        }
     }
 
     function priceText(restaurant) {
@@ -571,6 +594,8 @@
         const tags = element.tags || {};
         const name = tags.name || tags["name:en"];
         if (!name) return null;
+        // Bakeries and pastry shops found only on the map are mostly buns and cakes, not lunch
+        if (["bakery", "pastry", "confectionery"].includes(tags.shop)) return null;
         const latitude = element.lat ?? element.center?.lat;
         const longitude = element.lon ?? element.center?.lon;
         if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
@@ -695,7 +720,7 @@
                 || !cache.restaurants.every(isStoredRestaurant)) return null;
             return cache;
         } catch (error) {
-            DATA_NOTE.textContent = `Could not read the nearby-data cache: ${error.message}`;
+            console.warn("Could not read the saved map data:", error);
             return null;
         }
     }
@@ -703,36 +728,24 @@
     function saveOsmCache(cache) {
         try {
             localStorage.setItem(OSM_CACHE_KEY, JSON.stringify(cache));
-            return true;
         } catch (error) {
-            DATA_NOTE.textContent = `Nearby data loaded but could not be cached: ${error.message}`;
-            return false;
+            console.warn("Could not save the map data:", error);
         }
     }
 
-    function formatCacheTime(timestamp) {
-        return new Intl.DateTimeFormat("en-GB", { timeZone: data.timezone, dateStyle: "medium", timeStyle: "short" })
-            .format(new Date(timestamp));
-    }
-
-    async function refreshNearbyData(force = false) {
+    // Adds nearby places from OpenStreetMap in the background when the page opens (reusing the last copy for up to
+    // two hours). The saved list works on its own, so a failed lookup just leaves it as it is.
+    async function refreshNearbyData() {
         if (osmLookupRunning) return;
         const cached = readOsmCache();
         if (cached?.restaurants.length) {
             mergeNearbyRestaurants(cached.restaurants);
-            if (!force && Date.now() - cached.fetchedAt < OSM_CACHE_MAX_AGE) {
-                DATA_NOTE.textContent = `Starting point: ${data.location}. Nearby OpenStreetMap details cached ${formatCacheTime(cached.fetchedAt)}; opening hours use Stockholm time.`;
-                return;
-            }
+            if (Date.now() - cached.fetchedAt < OSM_CACHE_MAX_AGE) return;
         }
 
         osmLookupRunning = true;
-        REFRESH_BUTTON.disabled = true;
-        REFRESH_BUTTON.textContent = "Refreshing…";
-        DATA_NOTE.textContent = `Checking OpenStreetMap for nearby places around ${data.location}…`;
         const controller = new AbortController();
         const timeout = window.setTimeout(() => controller.abort(), 20_000);
-
         try {
             const quadrantResults = await Promise.allSettled(
                 getSearchQuadrants().map((bounds) => fetchSearchQuadrant(bounds, controller.signal))
@@ -741,7 +754,6 @@
             if (failures.length === quadrantResults.length) {
                 throw new Error(failures.map((result) => result.reason.message).join(" "));
             }
-
             const livePlaces = uniqueNearbyPlaces(quadrantResults
                 .filter((result) => result.status === "fulfilled")
                 .flatMap((result) => result.value)
@@ -751,30 +763,25 @@
                 ...livePlaces,
                 ...(failures.length ? cached?.restaurants || [] : [])
             ]);
-            const fetchedAt = Date.now();
             mergeNearbyRestaurants(nearby);
-            const cachedSuccessfully = saveOsmCache({ fetchedAt, restaurants: nearby });
-            const searchStatus = failures.length
-                ? `Loaded ${quadrantResults.length - failures.length} of 4 map areas; kept cached places for the rest.`
-                : `Checked all 4 map areas.`;
-            DATA_NOTE.textContent = cachedSuccessfully
-                ? `Starting point: ${data.location}. ${searchStatus} Found ${nearby.length} nearby places within about 20 minutes' walk, checked ${formatCacheTime(fetchedAt)}. Verify details on Google Maps.`
-                : `${searchStatus} Found ${nearby.length} nearby places around ${data.location}, but they could not be cached. Verify details on Google Maps.`;
+            saveOsmCache({ fetchedAt: Date.now(), restaurants: nearby });
         } catch (error) {
-            const detail = controller.signal.aborted
-                ? "The nearby search timed out."
-                : error.message;
-            if (cached?.restaurants.length) {
-                DATA_NOTE.textContent = `Could not refresh nearby data (${detail}) Showing cached OpenStreetMap details from ${formatCacheTime(cached.fetchedAt)} and saved restaurant data for ${data.location}.`;
-            } else {
-                DATA_NOTE.textContent = `Nearby lookup failed (${detail}) Showing saved restaurant data for ${data.location} instead. You can try again with “Refresh nearby data.”`;
-            }
+            console.warn("Nearby map lookup failed:", controller.signal.aborted ? "timed out" : error);
         } finally {
             window.clearTimeout(timeout);
             osmLookupRunning = false;
-            REFRESH_BUTTON.disabled = false;
-            REFRESH_BUTTON.innerHTML = REFRESH_BUTTON_LABEL;
         }
+    }
+
+    // A short message at the bottom of the screen, e.g. after saving a review
+    let toastTimer = null;
+    function showToast(message) {
+        TOAST.textContent = message;
+        TOAST.hidden = false;
+        window.clearTimeout(toastTimer);
+        toastTimer = window.setTimeout(() => {
+            TOAST.hidden = true;
+        }, 4000);
     }
 
     function drawWheel() {
@@ -794,9 +801,17 @@
         const size = bounds.width;
         const center = size / 2;
         const radius = center - 17;
-        const slice = (Math.PI * 2) / Math.max(eligibleRestaurants.length, 1);
-        const showSliceDetails = size >= 390 && eligibleRestaurants.length <= 9;
+        const count = eligibleRestaurants.length;
+        const slice = (Math.PI * 2) / Math.max(count, 1);
+        const showSliceDetails = size >= 390 && count <= 9;
         const now = showSliceDetails ? getStockholmTime() : null;
+        const fontSize = Math.max(10, Math.min(18, size / 24, 27 / Math.sqrt(Math.max(1, count / 7))));
+        // Names only show while there's room for them: at most 36 slices, and tall enough near the middle of the wheel
+        // where a name starts (smaller wheels, like on phones, switch to the pointer label sooner)
+        const showLabels = count <= 36 && radius * 0.4 * slice >= fontSize * 1.05;
+        // Borders only while slices are wide enough to see between them
+        const sliceWidthAtRim = radius * slice;
+        const borderWidth = sliceWidthAtRim >= 14 ? 3 : sliceWidthAtRim >= 6 ? 1 : 0;
         CONTEXT.clearRect(0, 0, size, size);
 
         eligibleRestaurants.forEach((restaurant, index) => {
@@ -806,13 +821,22 @@
             const sliceRadius = radius + (isHovered ? 13 : 0);
             CONTEXT.beginPath();
             CONTEXT.moveTo(center, center);
-            CONTEXT.arc(center, center, sliceRadius, start, end);
+            // Thin slices get a hair of overlap so no gaps show between them
+            CONTEXT.arc(center, center, sliceRadius, start, end + (borderWidth ? 0 : 0.004));
             CONTEXT.closePath();
-            CONTEXT.fillStyle = colorForRestaurant(restaurant);
+            // Rainbow: the colour follows the slice's place around the wheel. Labelled slices are a bit darker so
+            // the white names stay readable; thin ones alternate shades so neighbours can be told apart.
+            const hue = Math.round(index / count * 360);
+            const brightHue = hue >= 45 && hue <= 200; // yellows, greens and cyans need to be darker behind white text
+            const lightness = isHovered ? 46 : showLabels ? (brightHue ? 45 : 54) : index % 2 ? 60 : 66;
+            CONTEXT.fillStyle = `hsl(${hue} ${isHovered ? 70 : 60}% ${lightness}%)`;
             CONTEXT.fill();
-            CONTEXT.strokeStyle = "#fffaf2";
-            CONTEXT.lineWidth = isHovered ? 4 : 3;
-            CONTEXT.stroke();
+            if (borderWidth) {
+                CONTEXT.strokeStyle = "#fffaf2";
+                CONTEXT.lineWidth = isHovered ? borderWidth + 1 : borderWidth;
+                CONTEXT.stroke();
+            }
+            if (!showLabels) return;
 
             CONTEXT.save();
             CONTEXT.translate(center, center);
@@ -825,15 +849,20 @@
             CONTEXT.fillStyle = "#fff";
             CONTEXT.shadowColor = "#30251d66";
             CONTEXT.shadowBlur = 2;
-            const fontSize = Math.max(10, Math.min(18, size / 24, 27 / Math.sqrt(Math.max(1, eligibleRestaurants.length / 7))));
             CONTEXT.font = `700 ${fontSize}px "Trebuchet MS", sans-serif`;
             const maxWidth = radius * 0.7;
             const name = displayRestaurantName(restaurant);
             const nameWidth = CONTEXT.measureText(name).width;
             const labelScale = Math.min(1.45, Math.max(1, maxWidth * 0.9 / nameWidth));
-            const labelFontSize = fontSize * labelScale;
+            // Never taller than the slice where the name sits, and only wrap onto lines that fit;
+            // otherwise keep the name on one line (fillText squeezes it to fit the width)
+            const roomAtLabel = radius * 0.63 * slice;
+            // Long names reach in towards the middle, where the slice is narrowest, so size them for that too
+            const labelFontSize = Math.min(fontSize * labelScale, roomAtLabel * 0.72, radius * 0.32 * slice * 1.1);
             CONTEXT.font = `700 ${labelFontSize}px "Trebuchet MS", sans-serif`;
-            const scaledNameLines = wrapWheelLabel(name, maxWidth);
+            const maxLines = Math.max(1, Math.floor(roomAtLabel / (labelFontSize * 1.25)));
+            const wrapped = wrapWheelLabel(name, maxWidth);
+            const scaledNameLines = wrapped.length <= maxLines ? wrapped : [name];
             const textX = (flipLabel ? -1 : 1) * (radius + (isHovered ? 7 : 0)) * 0.63;
             const verticalDirection = flipLabel ? -1 : 1;
             const lineHeight = labelFontSize * 1.08;
@@ -869,30 +898,55 @@
             CONTEXT.restore();
         });
 
-        CONTEXT.beginPath();
-        CONTEXT.arc(center, center, Math.max(19, size * 0.055), 0, Math.PI * 2);
-        CONTEXT.fillStyle = "#fffaf2";
-        CONTEXT.fill();
-        CONTEXT.lineWidth = 5;
-        CONTEXT.strokeStyle = "#fff";
-        CONTEXT.stroke();
+        updateWheelTicker(showLabels, slice);
+
 
     }
 
-    function updateWheelHover(event) {
-        if (spinning || eligibleRestaurants.length === 0) return;
+    // Which slice the pointer is over (an index into eligibleRestaurants), or -1 for none
+    function wheelIndexAt(event) {
         const bounds = WHEEL.getBoundingClientRect();
         const x = event.clientX - bounds.left - bounds.width / 2;
         const y = event.clientY - bounds.top - bounds.height / 2;
         const distance = Math.hypot(x, y);
         const radius = bounds.width / 2 - 17;
-        let nextIndex = -1;
+        if (distance < SPIN_BUTTON.offsetWidth / 2 + 4 || distance > radius + 13) return -1; // the middle is the spin button
+        const angle = Math.atan2(y, x);
+        const relativeAngle = ((angle + Math.PI / 2 - rotation) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+        return Math.floor(relativeAngle / (Math.PI * 2) * eligibleRestaurants.length);
+    }
 
-        if (distance >= 46 && distance <= radius + 13) {
-            const angle = Math.atan2(y, x);
-            const relativeAngle = ((angle + Math.PI / 2 - rotation) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
-            nextIndex = Math.floor(relativeAngle / (Math.PI * 2) * eligibleRestaurants.length);
-        }
+    // Clicking a slice searches for that place and opens it in the list
+    function searchForWheelSlice(event) {
+        if (spinning || eligibleRestaurants.length === 0) return;
+        const index = wheelIndexAt(event);
+        if (index < 0) return;
+        const restaurant = eligibleRestaurants[index];
+        FILTERS.search.value = displayRestaurantName(restaurant);
+        selectedBranches.set(brandKey(restaurant), restaurant.id);
+        openCards.add(brandKey(restaurant));
+        WINNER_DETAILS.replaceChildren();
+        renderRestaurants();
+        const item = [...OPTION_LIST.children].find((li) => li.dataset.brand === brandKey(restaurant));
+        if (!item) return;
+        item.focus({ preventScroll: true });
+        item.scrollIntoView({ behavior: prefersReducedMotion.matches ? "auto" : "smooth", block: "center" });
+    }
+
+    // With too many slices for names, a label under the pointer shows which place it's on (it flickers while spinning)
+    function updateWheelTicker(showLabels, slice) {
+        const restaurant = !showLabels && eligibleRestaurants.length
+            ? eligibleRestaurants[Math.floor((((-rotation) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / slice) % eligibleRestaurants.length]
+            : null;
+        WHEEL_TICKER.hidden = !restaurant;
+        const text = restaurant ? displayRestaurantName(restaurant) : "";
+        if (WHEEL_TICKER.textContent !== text) WHEEL_TICKER.textContent = text;
+    }
+
+    function updateWheelHover(event) {
+        if (spinning || eligibleRestaurants.length === 0) return;
+        const nextIndex = wheelIndexAt(event);
+        WHEEL.style.cursor = nextIndex >= 0 ? "pointer" : "";
         if (nextIndex === hoveredRestaurantIndex) {
             if (nextIndex >= 0) positionWheelTooltip(event.clientX, event.clientY);
             return;
@@ -1109,7 +1163,7 @@
                     : message.textContent;
                 WINNER_DETAILS.replaceChildren();
                 renderRestaurants();
-                DATA_NOTE.textContent = saveMessage;
+                showToast(saveMessage);
             } catch (error) {
                 message.textContent = error.message;
                 message.classList.add("error");
@@ -1163,40 +1217,165 @@
         }
     }
 
-    function createReviewSection(restaurant) {
-        const section = document.createElement("div");
-        section.className = "review-section";
-        const heading = document.createElement("span");
-        heading.className = "review-heading";
-        const summary = reviewSummaries.get(restaurant.id);
-        if (reviewsState === "loading") heading.textContent = "Reviews: loading…";
-        else if (reviewsState === "failed") heading.textContent = "Reviews could not be loaded right now.";
-        else if (!summary) heading.textContent = "Reviews: none yet. Be the first!";
-        else heading.textContent = `Reviews: ${ratingSummaryText(restaurant)}`;
-        section.append(heading);
-
-        if (summary?.recent?.length) {
-            const list = document.createElement("div");
-            list.className = "review-list";
-            const dateFormat = new Intl.DateTimeFormat("en-GB", { timeZone: data.timezone, day: "numeric", month: "short" });
-            for (const review of summary.recent) {
-                const item = document.createElement("div");
-                const rating = document.createElement("span");
-                rating.className = "review-stars";
-                rating.textContent = stars(review.rating);
-                rating.setAttribute("aria-label", `${review.rating} out of 5`);
-                const when = review.date ? ` · ${dateFormat.format(new Date(review.date))}` : "";
-                item.append(rating, ` ${review.name}${when}`);
-                if (review.comment) {
-                    const comment = document.createElement("q");
-                    comment.textContent = review.comment;
-                    item.append(" ", comment);
-                }
-                list.append(item);
-            }
-            section.append(list);
+    // "Mon-Thu 08:00-18:00 · Fri 08:00-15:00 · Sat-Sun closed": days in a row with the same hours are grouped
+    function compactWeeklyHours(hours) {
+        const order = [1, 2, 3, 4, 5, 6, 0]; // Monday first
+        const text = (day) => {
+            const intervals = hours[DAY_KEYS[day]];
+            return intervals?.length ? intervals.join(", ") : "closed";
+        };
+        const groups = [];
+        for (const day of order) {
+            const last = groups[groups.length - 1];
+            if (last && last.text === text(day)) last.to = day;
+            else groups.push({ from: day, to: day, text: text(day) });
         }
-        return section;
+        return groups.map(({ from, to, text: value }) => {
+            const days = from === to ? DAY_NAMES[from].slice(0, 3) : `${DAY_NAMES[from].slice(0, 3)}–${DAY_NAMES[to].slice(0, 3)}`;
+            return `${days} ${value}`;
+        }).join(" · ");
+    }
+
+    // "Menu & prices" dropdown: the menu examples as a list, then what's vegetarian. Null when there's nothing to show.
+    const openMenuIds = new Set();
+
+    // Turns menu notes like "Meals: A 59 kr, B 89 kr" or "Basilika Wok 109 kr" into neat name / price rows
+    function createMenuList(parts) {
+        const list = document.createElement("div");
+        list.className = "menu-list";
+        const dish = /^(.+?)\s+(\d+(?:\s*[-–]\s*\d+)?\s*kr)(?:\s*\(.*\))?\.?$/;
+        const addRow = (name, price) => {
+            const row = document.createElement("div");
+            row.className = "menu-row";
+            const nameText = document.createElement("span");
+            nameText.textContent = name.charAt(0).toUpperCase() + name.slice(1);
+            const priceText = document.createElement("span");
+            priceText.className = "menu-price";
+            priceText.textContent = price.replace(/\s*[-–]\s*/, "–");
+            row.append(nameText, priceText);
+            list.append(row);
+        };
+        for (const fullPart of parts) {
+            // Leave out side notes in brackets at the end, e.g. "(official site: both kitchens share one menu)"
+            const part = fullPart.replace(/\s*\([^()]*\)\.?$/, "");
+            const headingMatch = /^([^:]{3,60}):\s*(.+)$/.exec(part);
+            const [, heading, rest] = headingMatch && !/\d\s*kr/.test(headingMatch[1]) ? headingMatch : [null, "", part];
+            const pieces = rest.split(/,\s*/);
+            const allDishes = pieces.length > 1 && pieces.every((piece) => dish.test(piece));
+            if (heading) {
+                const title = document.createElement("div");
+                title.className = "menu-heading";
+                title.textContent = heading;
+                list.append(title);
+            }
+            if (allDishes) {
+                for (const piece of pieces) addRow(...dish.exec(piece).slice(1, 3));
+            } else if (dish.test(rest)) {
+                addRow(...dish.exec(rest).slice(1, 3));
+            } else {
+                const line = document.createElement("div");
+                line.className = "menu-line";
+                line.textContent = rest.charAt(0).toUpperCase() + rest.slice(1);
+                list.append(line);
+            }
+        }
+        return list;
+    }
+
+    function createMenuDropdown(restaurant) {
+        const dishes = (restaurant.priceNote || "").split(/;\s*/).map((part) => part.trim()).filter(Boolean);
+        const vegetarianText = restaurant.vegetarian === "yes" ? restaurant.vegetarianNote : "";
+        if (!dishes.length && !vegetarianText) return null;
+
+        const dropdown = document.createElement("details");
+        dropdown.className = "detail-dropdown";
+        dropdown.open = openMenuIds.has(restaurant.id);
+        dropdown.addEventListener("toggle", () => {
+            if (dropdown.open) openMenuIds.add(restaurant.id);
+            else openMenuIds.delete(restaurant.id);
+        });
+        const toggle = document.createElement("summary");
+        toggle.textContent = dishes.length ? "Menu & prices" : "Vegetarian options";
+        dropdown.append(toggle);
+
+        const body = document.createElement("div");
+        body.className = "dropdown-body";
+        if (dishes.length) body.append(createMenuList(dishes));
+        if (vegetarianText) {
+            const vegetarian = document.createElement("p");
+            vegetarian.className = "menu-veg";
+            const label = document.createElement("strong");
+            label.textContent = "🌱 Vegetarian: ";
+            vegetarian.append(label, vegetarianText);
+            body.append(vegetarian);
+        }
+        const source = isWebLink(restaurant.priceSource) ? restaurant.priceSource
+            : isWebLink(restaurant.vegetarianSource) ? restaurant.vegetarianSource : "";
+        if (source) body.append(createLink(source, "See the full menu"));
+        dropdown.append(body);
+        return dropdown;
+    }
+
+    // Which places have their reviews dropdown open, so it stays open when the list re-renders
+    const openReviewIds = new Set();
+
+    function createReviewSection(restaurant) {
+        const summary = reviewSummaries.get(restaurant.id);
+        if (!summary) return null;
+
+        const dropdown = document.createElement("details");
+        dropdown.className = "detail-dropdown review-dropdown";
+        dropdown.open = openReviewIds.has(restaurant.id);
+        dropdown.addEventListener("toggle", () => {
+            if (dropdown.open) openReviewIds.add(restaurant.id);
+            else openReviewIds.delete(restaurant.id);
+        });
+        const toggle = document.createElement("summary");
+        const summaryStars = document.createElement("span");
+        summaryStars.className = "review-stars";
+        summaryStars.textContent = stars(Math.round(summary.average));
+        summaryStars.setAttribute("aria-hidden", "true");
+        toggle.append(summaryStars, ` ${summary.average.toFixed(1)} · ${summary.count} review${summary.count === 1 ? "" : "s"}`);
+        dropdown.append(toggle);
+
+        const list = document.createElement("div");
+        list.className = "review-list";
+        const dateFormat = new Intl.DateTimeFormat("en-GB", { timeZone: data.timezone, day: "numeric", month: "short" });
+        for (const review of summary.recent || []) {
+            const item = document.createElement("div");
+            item.className = "review-item";
+            const meta = document.createElement("div");
+            meta.className = "review-meta";
+            const rating = document.createElement("span");
+            rating.className = "review-stars";
+            rating.textContent = stars(review.rating);
+            rating.setAttribute("aria-label", `${review.rating} out of 5`);
+            const name = document.createElement("strong");
+            name.textContent = review.name;
+            meta.append(rating, name);
+            if (review.date) {
+                const date = document.createElement("span");
+                date.className = "detail-muted";
+                date.textContent = dateFormat.format(new Date(review.date));
+                meta.append(date);
+            }
+            item.append(meta);
+            if (review.comment) {
+                const comment = document.createElement("p");
+                comment.className = "review-comment";
+                comment.textContent = review.comment;
+                item.append(comment);
+            }
+            list.append(item);
+        }
+        if (summary.count > (summary.recent || []).length) {
+            const more = document.createElement("span");
+            more.className = "detail-muted";
+            more.textContent = `Showing the ${summary.recent.length} newest. Ask lunchbot in Slack for the rest.`;
+            list.append(more);
+        }
+        dropdown.append(list);
+        return dropdown;
     }
 
     function createReviewForm(restaurant, onClose) {
@@ -1247,10 +1426,7 @@
         message.className = "form-message edit-message";
         message.setAttribute("aria-live", "polite");
         actions.append(saveButton, cancelButton);
-        const note = document.createElement("p");
-        note.className = "review-form-note";
-        note.textContent = "Reviews are shared with everyone using Lunch Wheel and lunchbot in Slack.";
-        form.append(fields, actions, message, note);
+        form.append(fields, actions, message);
 
         cancelButton.addEventListener("click", onClose);
         form.addEventListener("submit", async (event) => {
@@ -1282,7 +1458,7 @@
                 onClose();
                 await loadReviews({ rerender: false });
                 renderRestaurants();
-                DATA_NOTE.textContent = `Thanks, ${cleanName}! Your review of ${displayRestaurantName(restaurant)} is saved.`;
+                showToast(`Thanks, ${cleanName}! Your review of ${displayRestaurantName(restaurant)} is saved.`);
             } catch (error) {
                 message.textContent = error.name === "TimeoutError"
                     ? "Saving took too long. Check your connection and try again."
@@ -1299,21 +1475,31 @@
     function renderRestaurants(now = getStockholmTime()) {
         hoveredRestaurantIndex = -1;
         WHEEL_TOOLTIP.hidden = true;
-        assignRestaurantColors();
+        buildBrands();
         const filtered = getFilteredRestaurants(now).sort((first, second) => compareByRelevance(first, second, now));
+        const groups = groupBranches(filtered);
         const matchingPlaces = restaurants.filter((restaurant) => !hiddenIds.includes(restaurant.id)
             && matchesOtherFilters(restaurant, now));
         const matchingPlacesAreHidden = matchingPlaces.length === 0
             && restaurants.some((restaurant) => hiddenIds.includes(restaurant.id) && matchesOtherFilters(restaurant, now));
-        const listEligible = filtered.filter((restaurant) => {
+        const canSpin = (restaurant) => {
             const state = getStatus(restaurant, now).state;
             return state === "open"
                 || state === "unknown"
                 || (FILTERS.showClosed.checked && state === "closed");
-        });
+        };
+        // One slice per brand: the picked (or nearest) branch among those that can be spun
+        const listEligible = groups
+            .map((branches) => branches.filter(canSpin))
+            .filter((branches) => branches.length)
+            .map(pickBranch);
         // Keep the wheel's slices fixed mid-spin so it lands on the announced winner;
         // the finished spin re-renders with the latest filters.
-        if (!spinning) eligibleRestaurants = listEligible;
+        // The wheel goes alphabetically (clockwise from the pointer); the list below keeps "most info first"
+        if (!spinning) {
+            eligibleRestaurants = [...listEligible].sort((first, second) =>
+                NAME_COLLATOR.compare(displayRestaurantName(first), displayRestaurantName(second)));
+        }
         const wheelIsEmpty = !spinning && listEligible.length === 0;
         RESULT.hidden = wheelIsEmpty;
         WHEEL_EMPTY.hidden = !wheelIsEmpty;
@@ -1340,7 +1526,7 @@
         }
         OPTION_LIST.replaceChildren();
         SPIN_BUTTON.disabled = spinning || listEligible.length === 0;
-        const openCount = filtered.filter((restaurant) => getStatus(restaurant, now).state === "open").length;
+        const openCount = groups.filter((branches) => getStatus(pickBranch(branches), now).state === "open").length;
         const unknownCount = listEligible.filter((restaurant) => getStatus(restaurant, now).state === "unknown").length;
         OPTION_COUNT.textContent = `${listEligible.length} on wheel · ${openCount} open · ${unknownCount} unconfirmed`;
         OPTION_COUNT.setAttribute("aria-label", `${listEligible.length} places on the wheel, ${openCount} open now, ${unknownCount} with unconfirmed hours`);
@@ -1364,9 +1550,14 @@
             OPTION_LIST.append(empty);
         }
 
-        filtered.forEach((restaurant) => {
+        groups.forEach((branches) => {
+            const restaurant = pickBranch(branches);
+            const brand = brandKey(restaurant);
             const status = getStatus(restaurant, now);
             const item = document.createElement("li");
+            item.dataset.id = restaurant.id;
+            item.dataset.brand = brand;
+            item.tabIndex = -1; // so clicking the place on the wheel can open it here
             if (status.state !== "open") item.classList.add("closed");
             if (status.state === "closed" && !FILTERS.showClosed.checked) item.classList.add("not-on-wheel");
 
@@ -1389,6 +1580,27 @@
                 : status.state === "closed" ? "Closed now" : "Opening hours unconfirmed";
             heading.append(statusDot);
             heading.prepend(name, categoryBadge);
+
+            // Click or tap a lunch spot to open it, and again to close it
+            heading.tabIndex = 0;
+            heading.setAttribute("role", "button");
+            const setOpen = (open) => {
+                item.classList.toggle("open", open);
+                heading.setAttribute("aria-expanded", String(open));
+                if (open) openCards.add(brand);
+                else openCards.delete(brand);
+            };
+            setOpen(openCards.has(brand));
+            item.addEventListener("click", (event) => {
+                // Buttons, links, menus and anything inside the opened details work as usual
+                if (event.target.closest("button, a, select, input, textarea, label, summary, .option-details")) return;
+                setOpen(!item.classList.contains("open"));
+            });
+            heading.addEventListener("keydown", (event) => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.preventDefault();
+                setOpen(!item.classList.contains("open"));
+            });
             const ratingText = ratingSummaryText(restaurant);
             if (ratingText) {
                 const ratingBadge = document.createElement("span");
@@ -1414,6 +1626,7 @@
                     editButton.setAttribute("aria-expanded", "false");
                     return;
                 }
+                setOpen(true);
                 details.append(createEditForm(restaurant));
                 editButton.textContent = "Close editor";
                 editButton.setAttribute("aria-expanded", "true");
@@ -1426,7 +1639,8 @@
             removeButton.setAttribute("aria-label", `Remove ${displayRestaurantName(restaurant)}`);
             removeButton.addEventListener("click", () => {
                 if (spinning) return;
-                hiddenIds.push(restaurant.id);
+                const removedIds = branches.map((branch) => branch.id);
+                hiddenIds.push(...removedIds);
                 saveUserData();
                 WINNER_DETAILS.replaceChildren();
                 RESULT.textContent = "Restaurant removed from your list.";
@@ -1435,7 +1649,7 @@
                 undoButton.type = "button";
                 undoButton.textContent = "Undo";
                 undoButton.addEventListener("click", () => {
-                    hiddenIds = hiddenIds.filter((id) => id !== restaurant.id);
+                    hiddenIds = hiddenIds.filter((id) => !removedIds.includes(id));
                     saveUserData();
                     WINNER_DETAILS.replaceChildren();
                     renderRestaurants();
@@ -1463,6 +1677,7 @@
                         return;
                     }
                     const form = createReviewForm(restaurant, closeReviewForm);
+                    setOpen(true);
                     details.append(form);
                     reviewButton.textContent = "Close review";
                     reviewButton.setAttribute("aria-expanded", "true");
@@ -1474,102 +1689,98 @@
 
             const details = document.createElement("div");
             details.className = "option-details";
+
+            // The key facts on one line: open or not, how far, how much
+            const summaryLine = document.createElement("div");
+            summaryLine.className = "detail-summary";
             const statusLine = document.createElement("span");
             statusLine.className = `status-line ${status.state}`;
             statusLine.textContent = status.label;
-            details.append(statusLine);
+            summaryLine.append(statusLine, ` · ${restaurant.walkMinutes
+                ? `${restaurant.walkIsEstimate ? "~" : ""}${restaurant.walkMinutes} min walk`
+                : "walking time not added"} · ${priceText(restaurant)}`);
+            details.append(summaryLine);
 
-            const meta = document.createElement("span");
-            const vegetarianText = restaurant.vegetarian === "yes"
-                ? `Vegetarian: ${restaurant.vegetarianNote || "Yes"}`
-                : restaurant.vegetarian === "no" ? "Vegetarian: No" : `Vegetarian: Not confirmed${restaurant.vegetarianNote ? ` — ${restaurant.vegetarianNote}` : ""}`;
-            meta.textContent = `${vegetarianText} · ${priceText(restaurant)}`;
-            details.append(meta);
-            if (canReview) details.append(createReviewSection(restaurant));
-            if (restaurant.unverified) {
-                const unverified = document.createElement("span");
-                unverified.textContent = "Details come from OpenStreetMap and haven't been checked by hand yet.";
-                details.append(unverified);
+            // Chains: pick which branch (address) the card shows
+            if (branches.length > 1) {
+                const picker = document.createElement("label");
+                picker.className = "branch-picker";
+                const select = document.createElement("select");
+                select.setAttribute("aria-label", `Choose which ${displayRestaurantName(restaurant)}`);
+                for (const branch of [...branches].sort((a, b) => (a.walkMinutes ?? 999) - (b.walkMinutes ?? 999))) {
+                    const option = document.createElement("option");
+                    option.value = branch.id;
+                    const branchState = getStatus(branch, now).state;
+                    option.textContent = [
+                        shortAddress(branch) || branch.name,
+                        branch.walkMinutes ? `${branch.walkIsEstimate ? "~" : ""}${branch.walkMinutes} min` : "",
+                        branchState === "closed" ? "closed now" : ""
+                    ].filter(Boolean).join(" · ");
+                    select.append(option);
+                }
+                select.value = restaurant.id;
+                select.addEventListener("change", () => {
+                    selectedBranches.set(brand, select.value);
+                    renderRestaurants();
+                    // Re-rendering rebuilds the card, so keep it open on the new branch
+                    OPTION_LIST.querySelector(`li[data-brand="${CSS.escape(brand)}"] .branch-picker select`)?.focus();
+                });
+                picker.append(`📍 ${branches.length} places: `, select);
+                details.append(picker);
+            } else if (isChain(restaurant) && shortAddress(restaurant)) {
+                const address = document.createElement("span");
+                address.className = "branch-picker";
+                address.textContent = `📍 ${shortAddress(restaurant)}`;
+                details.append(address);
             }
 
-            if (isWebLink(restaurant.vegetarianSource)) {
-                details.append(createLink(restaurant.vegetarianSource, "Vegetarian source"));
+            // A few small tags: today's hours, vegetarian, unchecked details
+            const tags = document.createElement("div");
+            tags.className = "detail-tags";
+            const addTag = (text, className = "", title = "") => {
+                const tag = document.createElement("span");
+                tag.className = `detail-tag ${className}`.trim();
+                tag.textContent = text;
+                if (title) tag.title = title;
+                tags.append(tag);
+            };
+            if (restaurant.hours) {
+                const today = restaurant.hours[DAY_KEYS[now.day]];
+                addTag(`Today ${today?.length ? today.join(", ").replace(/-/g, "–") : "closed"}`, "",
+                    compactWeeklyHours(restaurant.hours).replace(/-/g, "–"));
             }
+            if (restaurant.vegetarian === "yes") addTag("🌱 Vegetarian options", "veg");
+            else if (restaurant.vegetarian === "no") addTag("No vegetarian options");
+            if (restaurant.unverified) addTag("Details unchecked", "muted", "From OpenStreetMap, not checked by hand yet");
+            if (tags.childElementCount) details.append(tags);
 
-            if (restaurant.priceNote) {
-                const priceNote = document.createElement("span");
-                priceNote.textContent = `Published menu items: ${restaurant.priceNote}`;
-                details.append(priceNote);
-            }
-            if (isWebLink(restaurant.priceSource)) {
-                details.append(createLink(
-                    restaurant.priceSource,
-                    restaurant.priceCheckedAt
-                        ? `Official menu price source · checked ${restaurant.priceCheckedAt}`
-                        : "Price source"
-                ));
-            } else if (restaurant.priceSource === EDITED_IN_APP) {
-                const priceSource = document.createElement("span");
-                priceSource.textContent = "Price source: edited in this browser";
-                details.append(priceSource);
-            }
             if (restaurant.notice) {
                 const notice = document.createElement("span");
                 notice.className = "place-notice";
-                notice.textContent = `Note: ${restaurant.notice}`;
+                notice.textContent = restaurant.notice;
                 details.append(notice);
             }
 
-            if (restaurant.hours) {
-                const weeklyHours = document.createElement("span");
-                weeklyHours.textContent = `Weekly hours: ${formatWeeklyHours(restaurant.hours)}`;
-                details.append(weeklyHours);
-            }
-            if (restaurant.hoursSource) {
-                const hoursSource = document.createElement("span");
-                hoursSource.textContent = restaurant.hoursCheckedAt
-                    ? `${restaurant.hoursSource} listing · checked ${restaurant.hoursCheckedAt}`
-                    : `Hours source: ${restaurant.hoursSource}`;
-                details.append(hoursSource);
-            }
+            const menu = createMenuDropdown(restaurant);
+            if (menu) details.append(menu);
+            const reviews = canReview ? createReviewSection(restaurant) : null;
+            if (reviews) details.append(reviews);
 
-            if (restaurant.walkMinutes) {
-                const walkLabel = `Walking time: ${restaurant.walkIsEstimate ? "~" : ""}${restaurant.walkMinutes} min`;
-                details.append(createLink(directionsUrl(restaurant), walkLabel, "walk-link"));
-            } else {
-                const walk = document.createElement("span");
-                walk.textContent = "Walking time: not added";
-                details.append(walk);
-            }
-
-            if (restaurant.cuisine) {
-                const cuisine = document.createElement("span");
-                cuisine.textContent = `Cuisine: ${restaurant.cuisine.replace(/;/g, ", ")}`;
-                details.append(cuisine);
-            }
-            if (restaurant.openingHoursText && !restaurant.hours) {
-                const rawHours = document.createElement("span");
-                rawHours.textContent = `Listed hours need checking: ${restaurant.openingHoursText}`;
-                details.append(rawHours);
-            }
-
-            details.append(createLink(googleMapsUrl(restaurant), "Google Maps listing and hours"));
+            const links = document.createElement("div");
+            links.className = "detail-links";
+            links.append(
+                createLink(directionsUrl(restaurant), "Directions", "walk-link"),
+                createLink(googleMapsUrl(restaurant), "Google Maps")
+            );
+            details.append(links);
             item.append(heading, actions, details);
             OPTION_LIST.append(item);
         });
 
         if (spinning) {
             // The spin animation owns the result text until it finishes.
-        } else if (listEligible.length === 0) {
-            if (!WINNER_DETAILS.hasChildNodes()) {
-                RESULT.textContent = !filtered.length
-                    ? "Adjust filters or restore removed places above."
-                    : FILTERS.showClosed.checked
-                        ? "No matching places are eligible to spin."
-                        : "No matching places are open now. Check “Include closed places on the wheel” to spin them anyway.";
-            }
         } else if (!WINNER_DETAILS.hasChildNodes()) {
-            RESULT.textContent = "Ready when you are!";
+            RESULT.textContent = ""; // the wheel itself says when nothing can be spun
         }
 
         drawWheel();
@@ -1623,7 +1834,7 @@
         hoveredRestaurantIndex = -1;
         WHEEL_TOOLTIP.hidden = true;
         SPIN_BUTTON.disabled = true;
-        RESULT.textContent = "Picking a lunch spot…";
+        RESULT.textContent = "";
         WINNER_DETAILS.replaceChildren();
 
         const selection = [...eligibleRestaurants];
@@ -1655,6 +1866,7 @@
             info.textContent = displayRestaurantName(selected);
             RESULT.replaceChildren("Today you’re having ", info, "!");
             WINNER_DETAILS.replaceChildren([
+                isChain(selected) ? shortAddress(selected) : "",
                 getStatus(selected, getStockholmTime()).label,
                 priceText(selected),
                 ratingSummaryText(selected)
@@ -1798,7 +2010,6 @@
         data = window.LUNCH_WHEEL_DATA;
         if (!data || !Array.isArray(data.restaurants) || !data.timezone || !data.origin) {
             RESULT.textContent = "Could not load restaurant data. Check that restaurants.js is beside index.html.";
-            DATA_NOTE.textContent = "Restaurant data could not be loaded.";
             return;
         }
 
@@ -1815,7 +2026,6 @@
         }
         restaurants = applySavedRestaurantEdits([...data.restaurants, ...customRestaurants]);
         reviewableIds = new Set(data.restaurants.map((restaurant) => restaurant.id));
-        DATA_NOTE.textContent = `Starting point: ${data.location}. Checking nearby OpenStreetMap data; saved schedules use Stockholm local time.`;
 
         for (const input of [...Object.values(FILTERS), ...CATEGORY_FILTERS]) {
             input.addEventListener("change", () => {
@@ -1829,8 +2039,8 @@
             renderRestaurants();
         });
         SPIN_BUTTON.addEventListener("click", spin);
-        REFRESH_BUTTON.addEventListener("click", () => refreshNearbyData(true));
         WHEEL.addEventListener("pointermove", updateWheelHover);
+        WHEEL.addEventListener("click", searchForWheelSlice);
         WHEEL.addEventListener("pointerleave", () => {
             hoveredRestaurantIndex = -1;
             WHEEL_TOOLTIP.hidden = true;
@@ -1877,7 +2087,7 @@
                 showFormMessage(restaurant.hours
                     ? "Place added. Its saved hours decide whether it shows as open or closed."
                     : "Place added. Without opening hours it is marked hours-unconfirmed but can still be spun.");
-                RESULT.textContent = "Place added to your list.";
+                showToast("Place added to your list.");
                 WINNER_DETAILS.replaceChildren();
                 renderRestaurants();
             } catch (error) {
