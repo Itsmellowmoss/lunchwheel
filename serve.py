@@ -5,9 +5,19 @@ import os
 import webbrowser
 
 
+class Utf8Handler(SimpleHTTPRequestHandler):
+    # Say the files are UTF-8, so symbols like ▾, ★ and å show correctly in every browser
+    extensions_map = {
+        **SimpleHTTPRequestHandler.extensions_map,
+        ".html": "text/html; charset=utf-8",
+        ".css": "text/css; charset=utf-8",
+        ".js": "text/javascript; charset=utf-8",
+    }
+
+
 def main():
     os.chdir(Path(__file__).resolve().parent)
-    server = ThreadingHTTPServer(("127.0.0.1", 0), SimpleHTTPRequestHandler)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Utf8Handler)
     url = f"http://127.0.0.1:{server.server_port}/"
     print(f"Lunch Wheel is running at {url}")
     try:

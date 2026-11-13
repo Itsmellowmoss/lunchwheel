@@ -25,6 +25,9 @@
     const SPIN_BUTTON = document.querySelector("#spin");
     const RESULT = document.querySelector("#result");
     const WINNER_DETAILS = document.querySelector("#winner-details");
+    const WINNER_CARD = document.querySelector("#winner-card");
+    const RESET_FILTERS = document.querySelector("#reset-filters");
+    const FILTER_SETTINGS_KEY = "lunch-wheel-filters-v1";
     const WHEEL_EMPTY = document.querySelector("#wheel-empty");
     const WHEEL_EMPTY_TITLE = document.querySelector("#wheel-empty-title");
     const WHEEL_EMPTY_MESSAGE = document.querySelector("#wheel-empty-message");
@@ -38,6 +41,7 @@
         search: document.querySelector("#place-search"),
         showClosed: document.querySelector("#filter-closed"),
         showUnpriced: document.querySelector("#filter-unpriced"),
+        showUnconfirmed: document.querySelector("#filter-unconfirmed"),
         vegetarian: document.querySelector("#filter-vegetarian"),
         walk: document.querySelector("#filter-walk"),
         price: document.querySelector("#filter-price")
@@ -301,6 +305,8 @@
         const selectedCategories = CATEGORY_FILTERS.filter((input) => input.checked).map((input) => input.value);
         if (selectedCategories.length && !selectedCategories.includes(getCategory(restaurant))) return false;
         if (!FILTERS.showUnpriced.checked && restaurant.priceMin == null && restaurant.priceMax == null) return false;
+        // Hours unconfirmed = no known opening hours for today
+        if (!FILTERS.showUnconfirmed.checked && getStatus(restaurant, now).state === "unknown") return false;
 
         const maxWalk = Number(FILTERS.walk.value);
         if (maxWalk && (!restaurant.walkMinutes || restaurant.walkMinutes > maxWalk)) return false;
@@ -1305,7 +1311,7 @@
             const vegetarian = document.createElement("p");
             vegetarian.className = "menu-veg";
             const label = document.createElement("strong");
-            label.textContent = "🌱 Vegetarian: ";
+            label.textContent = "Vegetarian: ";
             vegetarian.append(label, vegetarianText);
             body.append(vegetarian);
         }
@@ -1472,6 +1478,32 @@
         return form;
     }
 
+    // Every lunch spot is one row. Extras fill the free space and are dropped, one at a time, only where a card
+    // is too crowded to show its whole name: first the place type, then the walk time, then today's hours.
+    const CROWDED_STEPS = ["hide-badge", "hide-walk", "hide-hours"];
+
+    function fitCardRows() {
+        const items = [...OPTION_LIST.querySelectorAll(":scope > li[data-brand]")];
+        items.forEach((item) => item.classList.remove(...CROWDED_STEPS));
+        const isCrowded = (item) => {
+            const name = item.querySelector(".option-name");
+            const heading = item.querySelector(".option-heading");
+            return name.scrollWidth > name.clientWidth + 1 || heading.scrollWidth > heading.clientWidth + 1;
+        };
+        let crowded = items;
+        for (const step of CROWDED_STEPS) {
+            crowded = crowded.filter(isCrowded); // measure all first, then change, so the page only re-lays out once per step
+            if (!crowded.length) break;
+            crowded.forEach((item) => item.classList.add(step));
+        }
+    }
+
+    let fitTimer = null;
+    function refitOnResize() {
+        window.clearTimeout(fitTimer);
+        fitTimer = window.setTimeout(fitCardRows, 120);
+    }
+
     function renderRestaurants(now = getStockholmTime()) {
         hoveredRestaurantIndex = -1;
         WHEEL_TOOLTIP.hidden = true;
@@ -1578,8 +1610,41 @@
             statusDot.title = status.state === "open"
                 ? "Open now"
                 : status.state === "closed" ? "Closed now" : "Opening hours unconfirmed";
-            heading.append(statusDot);
-            heading.prepend(name, categoryBadge);
+            const openArrow = document.createElement("span");
+            openArrow.className = "open-arrow";
+            openArrow.setAttribute("aria-hidden", "true");
+            openArrow.textContent = "\u25BE";
+            // Badge, rating, dot and arrow stay together so they never wrap apart
+            const meta = document.createElement("span");
+            meta.className = "option-meta";
+            meta.append(categoryBadge, statusDot, openArrow);
+            heading.append(name, meta);
+
+            // In the card's empty space: today's opening hours and the walk, so you don't have to open it
+            const glance = document.createElement("span");
+            glance.className = "option-glance";
+            const todaysHours = restaurant.hours?.[DAY_KEYS[now.day]];
+            const hoursText = document.createElement("span");
+            if (!Array.isArray(todaysHours)) hoursText.textContent = "Hours unknown";
+            else if (!todaysHours.length) {
+                hoursText.textContent = "Closed today";
+                hoursText.className = "glance-closed";
+            } else {
+                // Just one slot: the one open now, else the next one today, else the first (the card has them all)
+                const slots = todaysHours.map((range) => ({ range, ...parseInterval(range) }));
+                const slot = slots.find((s) => now.minutes >= s.start && now.minutes < s.end)
+                    || slots.find((s) => s.start > now.minutes) || slots[0];
+                hoursText.textContent = slot.range.replace(/-/g, "\u2013");
+            }
+            glance.append(hoursText);
+            if (restaurant.walkMinutes) {
+                const walk = document.createElement("span");
+                walk.className = "glance-walk";
+                walk.textContent = ` \u00b7 ${restaurant.walkIsEstimate ? "~" : ""}${restaurant.walkMinutes} min`;
+                walk.title = "Walking time";
+                glance.append(walk);
+            }
+            heading.append(glance);
 
             // Click or tap a lunch spot to open it, and again to close it
             heading.tabIndex = 0;
@@ -1699,7 +1764,16 @@
             summaryLine.append(statusLine, ` · ${restaurant.walkMinutes
                 ? `${restaurant.walkIsEstimate ? "~" : ""}${restaurant.walkMinutes} min walk`
                 : "walking time not added"} · ${priceText(restaurant)}`);
-            details.append(summaryLine);
+            const links = document.createElement("div");
+            links.className = "detail-links";
+            links.append(
+                createLink(directionsUrl(restaurant), "Directions", "walk-link"),
+                createLink(googleMapsUrl(restaurant), "Google Maps")
+            );
+            const topRow = document.createElement("div");
+            topRow.className = "detail-top";
+            topRow.append(summaryLine, links);
+            details.append(topRow);
 
             // Chains: pick which branch (address) the card shows
             if (branches.length > 1) {
@@ -1725,12 +1799,12 @@
                     // Re-rendering rebuilds the card, so keep it open on the new branch
                     OPTION_LIST.querySelector(`li[data-brand="${CSS.escape(brand)}"] .branch-picker select`)?.focus();
                 });
-                picker.append(`📍 ${branches.length} places: `, select);
+                picker.append(`${branches.length} places: `, select);
                 details.append(picker);
             } else if (isChain(restaurant) && shortAddress(restaurant)) {
                 const address = document.createElement("span");
                 address.className = "branch-picker";
-                address.textContent = `📍 ${shortAddress(restaurant)}`;
+                address.textContent = shortAddress(restaurant);
                 details.append(address);
             }
 
@@ -1749,7 +1823,7 @@
                 addTag(`Today ${today?.length ? today.join(", ").replace(/-/g, "–") : "closed"}`, "",
                     compactWeeklyHours(restaurant.hours).replace(/-/g, "–"));
             }
-            if (restaurant.vegetarian === "yes") addTag("🌱 Vegetarian options", "veg");
+            if (restaurant.vegetarian === "yes") addTag("Vegetarian options", "veg");
             else if (restaurant.vegetarian === "no") addTag("No vegetarian options");
             if (restaurant.unverified) addTag("Details unchecked", "muted", "From OpenStreetMap, not checked by hand yet");
             if (tags.childElementCount) details.append(tags);
@@ -1761,21 +1835,18 @@
                 details.append(notice);
             }
 
+            const dropdowns = document.createElement("div");
+            dropdowns.className = "detail-dropdowns";
             const menu = createMenuDropdown(restaurant);
-            if (menu) details.append(menu);
+            if (menu) dropdowns.append(menu);
             const reviews = canReview ? createReviewSection(restaurant) : null;
-            if (reviews) details.append(reviews);
-
-            const links = document.createElement("div");
-            links.className = "detail-links";
-            links.append(
-                createLink(directionsUrl(restaurant), "Directions", "walk-link"),
-                createLink(googleMapsUrl(restaurant), "Google Maps")
-            );
-            details.append(links);
+            if (reviews) dropdowns.append(reviews);
+            if (dropdowns.childElementCount) details.append(dropdowns);
             item.append(heading, actions, details);
             OPTION_LIST.append(item);
         });
+        fitCardRows();
+        updateResetVisibility();
 
         if (spinning) {
             // The spin animation owns the result text until it finishes.
@@ -1789,7 +1860,8 @@
     function animateIdle(now) {
         const elapsed = lastIdleFrame === null ? 0 : Math.min(now - lastIdleFrame, 50);
         lastIdleFrame = now;
-        if (!spinning && hoveredRestaurantIndex < 0 && !prefersReducedMotion.matches && eligibleRestaurants.length > 0) {
+        // The wheel drifts slowly while idle, but holds still on the winner while its result card is showing
+        if (!spinning && hoveredRestaurantIndex < 0 && WINNER_CARD.hidden && !prefersReducedMotion.matches && eligibleRestaurants.length > 0) {
             rotation = (rotation + elapsed * (Math.PI * 2 / 60000)) % (Math.PI * 2);
             drawWheel();
         }
@@ -1797,10 +1869,63 @@
         requestAnimationFrame(animateIdle);
     }
 
+    // Filters are remembered in this browser between visits (not the search text)
+    function filterSettings() {
+        return {
+            vegetarian: FILTERS.vegetarian.checked,
+            showClosed: FILTERS.showClosed.checked,
+            showUnpriced: FILTERS.showUnpriced.checked,
+            showUnconfirmed: FILTERS.showUnconfirmed.checked,
+            walk: FILTERS.walk.value,
+            price: FILTERS.price.value,
+            categories: CATEGORY_FILTERS.filter((input) => input.checked).map((input) => input.value)
+        };
+    }
+
+    const DEFAULT_FILTERS = JSON.stringify({
+        vegetarian: false, showClosed: true, showUnpriced: true, showUnconfirmed: true, walk: "", price: "", categories: []
+    });
+
+    function saveFilterSettings() {
+        try {
+            localStorage.setItem(FILTER_SETTINGS_KEY, JSON.stringify(filterSettings()));
+        } catch {
+            // only a convenience
+        }
+    }
+
+    function restoreFilterSettings() {
+        let saved = null;
+        try {
+            saved = JSON.parse(localStorage.getItem(FILTER_SETTINGS_KEY) || "null");
+        } catch {
+            return;
+        }
+        if (!saved || typeof saved !== "object") return;
+        for (const key of ["vegetarian", "showClosed", "showUnpriced", "showUnconfirmed"]) {
+            if (typeof saved[key] === "boolean") FILTERS[key].checked = saved[key];
+        }
+        for (const key of ["walk", "price"]) {
+            if ([...FILTERS[key].options].some((option) => option.value === saved[key])) FILTERS[key].value = saved[key];
+        }
+        if (Array.isArray(saved.categories)) {
+            CATEGORY_FILTERS.forEach((input) => {
+                input.checked = saved.categories.includes(input.value);
+            });
+        }
+        updateCategoryFilterSummary();
+    }
+
+    // The "Reset filters" link only shows when something differs from the defaults
+    function updateResetVisibility() {
+        RESET_FILTERS.hidden = JSON.stringify(filterSettings()) === DEFAULT_FILTERS && !FILTERS.search.value.trim();
+    }
+
     function resetFilters() {
         FILTERS.search.value = "";
         FILTERS.showClosed.checked = true;
         FILTERS.showUnpriced.checked = true;
+        FILTERS.showUnconfirmed.checked = true;
         FILTERS.vegetarian.checked = false;
         FILTERS.walk.value = "";
         FILTERS.price.value = "";
@@ -1809,6 +1934,7 @@
         });
         updateCategoryFilterSummary();
         WINNER_DETAILS.replaceChildren();
+        saveFilterSettings();
         renderRestaurants();
     }
 
@@ -1816,7 +1942,7 @@
         const selected = CATEGORY_FILTERS.filter((input) => input.checked)
             .map((input) => input.parentElement.textContent.trim());
         CATEGORY_FILTER_SUMMARY.textContent = selected.length === 0
-            ? "All types"
+            ? "All place types"
             : selected.length <= 2 ? selected.join(" + ") : `${selected.length} types selected`;
     }
 
@@ -1828,6 +1954,102 @@
         renderRestaurants();
     }
 
+    // ---- The spin result: a card over the wheel ----
+
+    function hideWinnerCard() {
+        WINNER_CARD.hidden = true;
+        WINNER_CARD.replaceChildren();
+    }
+
+    // Opens a place's card in the list and scrolls to it
+    function showInList(restaurant) {
+        const brand = brandKey(restaurant);
+        selectedBranches.set(brand, restaurant.id);
+        openCards.add(brand);
+        renderRestaurants();
+        const item = OPTION_LIST.querySelector(`li[data-brand="${CSS.escape(brand)}"]`);
+        if (!item) return;
+        item.scrollIntoView({ behavior: prefersReducedMotion.matches ? "auto" : "smooth", block: "center" });
+        item.querySelector(".option-heading")?.focus({ preventScroll: true });
+    }
+
+    function showWinnerCard(restaurant) {
+        const now = getStockholmTime();
+        const status = getStatus(restaurant, now);
+        const card = document.createDocumentFragment();
+
+        const close = document.createElement("button");
+        close.type = "button";
+        close.className = "winner-close";
+        close.textContent = "\u00d7";
+        close.setAttribute("aria-label", "Close");
+        close.addEventListener("click", hideWinnerCard);
+
+        const kicker = document.createElement("p");
+        kicker.className = "winner-kicker";
+        kicker.textContent = "Today you're having";
+        const name = document.createElement("h2");
+        name.className = "winner-name";
+        name.textContent = displayRestaurantName(restaurant);
+        card.append(close, kicker, name);
+
+        if (isChain(restaurant) && shortAddress(restaurant)) {
+            const address = document.createElement("p");
+            address.className = "winner-address";
+            address.textContent = shortAddress(restaurant);
+            card.append(address);
+        }
+
+        const todaysHours = restaurant.hours?.[DAY_KEYS[now.day]];
+        const facts = document.createElement("p");
+        facts.className = "winner-facts";
+        const state = document.createElement("span");
+        state.className = `status-line ${status.state}`;
+        state.textContent = status.state === "open" ? "Open now" : status.state === "closed" ? "Closed now" : "Hours unconfirmed";
+        facts.append(state, ...[
+            Array.isArray(todaysHours) ? (todaysHours.length ? `Today ${todaysHours.join(", ").replace(/-/g, "\u2013")}` : "Closed today") : "",
+            restaurant.walkMinutes ? `${restaurant.walkIsEstimate ? "~" : ""}${restaurant.walkMinutes} min walk` : "",
+            priceText(restaurant)
+        ].filter(Boolean).map((text) => ` \u00b7 ${text}`));
+        card.append(facts);
+
+        const extras = [ratingSummaryText(restaurant), restaurant.vegetarian === "yes" ? "Vegetarian options" : ""].filter(Boolean);
+        if (extras.length) {
+            const tags = document.createElement("p");
+            tags.className = "winner-tags";
+            for (const text of extras) {
+                const tag = document.createElement("span");
+                tag.textContent = text;
+                tags.append(tag);
+            }
+            card.append(tags);
+        }
+
+        const actions = document.createElement("div");
+        actions.className = "winner-actions";
+        const directions = createLink(directionsUrl(restaurant), "Directions", "winner-button primary");
+        const details = document.createElement("button");
+        details.type = "button";
+        details.className = "winner-button";
+        details.textContent = "See details";
+        details.addEventListener("click", () => {
+            hideWinnerCard();
+            showInList(restaurant);
+        });
+        const again = document.createElement("button");
+        again.type = "button";
+        again.className = "winner-button";
+        again.textContent = "Spin again";
+        again.addEventListener("click", spin);
+        actions.append(directions, details, again);
+        card.append(actions);
+
+        WINNER_CARD.replaceChildren(card);
+        WINNER_CARD.hidden = false;
+        // Focus the card itself (not a button), so keyboard and screen-reader users land on the result without a loud focus ring
+        WINNER_CARD.focus({ preventScroll: true });
+    }
+
     function spin() {
         if (spinning || eligibleRestaurants.length === 0) return;
         spinning = true;
@@ -1836,6 +2058,7 @@
         SPIN_BUTTON.disabled = true;
         RESULT.textContent = "";
         WINNER_DETAILS.replaceChildren();
+        hideWinnerCard();
 
         const selection = [...eligibleRestaurants];
         const winner = Math.floor(Math.random() * selection.length);
@@ -1862,23 +2085,8 @@
             rotation = endRotation % (Math.PI * 2);
             spinning = false;
             const selected = selection[winner];
-            const info = document.createElement("strong");
-            info.textContent = displayRestaurantName(selected);
-            RESULT.replaceChildren("Today you’re having ", info, "!");
-            WINNER_DETAILS.replaceChildren([
-                isChain(selected) ? shortAddress(selected) : "",
-                getStatus(selected, getStockholmTime()).label,
-                priceText(selected),
-                ratingSummaryText(selected)
-            ].filter(Boolean).join(" · "));
-            if (selected.walkMinutes) {
-                WINNER_DETAILS.append(createLink(
-                    directionsUrl(selected),
-                    `Walking time: ${selected.walkIsEstimate ? "~" : ""}${selected.walkMinutes} min`,
-                    "walk-link"
-                ));
-            }
-            WINNER_DETAILS.append(createLink(googleMapsUrl(selected), "Check Google Maps hours"));
+            RESULT.textContent = `Today you're having ${displayRestaurantName(selected)}!`; // read out by screen readers
+            showWinnerCard(selected);
             renderRestaurants();
         }
 
@@ -2024,6 +2232,7 @@
             editedRestaurants = editedRestaurants.map((edit) => migrateLegacyEdit(edit, basesById.get(edit.id)));
             saveUserData();
         }
+        restoreFilterSettings();
         restaurants = applySavedRestaurantEdits([...data.restaurants, ...customRestaurants]);
         reviewableIds = new Set(data.restaurants.map((restaurant) => restaurant.id));
 
@@ -2031,14 +2240,31 @@
             input.addEventListener("change", () => {
                 if (CATEGORY_FILTERS.includes(input)) updateCategoryFilterSummary();
                 WINNER_DETAILS.replaceChildren();
+                saveFilterSettings();
                 renderRestaurants();
             });
         }
+        RESET_FILTERS.addEventListener("click", resetFilters);
         FILTERS.search.addEventListener("input", () => {
             WINNER_DETAILS.replaceChildren();
             renderRestaurants();
         });
         SPIN_BUTTON.addEventListener("click", spin);
+        // Pressing anywhere outside the result card closes it (the press still does what it normally does)
+        document.addEventListener("pointerdown", (event) => {
+            if (!WINNER_CARD.hidden && !WINNER_CARD.contains(event.target)) hideWinnerCard();
+        });
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && !WINNER_CARD.hidden) {
+                hideWinnerCard();
+                return;
+            }
+            if (event.key !== " " || event.repeat || event.metaKey || event.ctrlKey || event.altKey) return;
+            // Only when not typing or pressing something else that uses Space
+            if (event.target.closest("input, textarea, select, button, a, summary, [role=button], [contenteditable]")) return;
+            event.preventDefault();
+            spin();
+        });
         WHEEL.addEventListener("pointermove", updateWheelHover);
         WHEEL.addEventListener("click", searchForWheelSlice);
         WHEEL.addEventListener("pointerleave", () => {
@@ -2047,6 +2273,7 @@
             drawWheel();
         });
         window.addEventListener("resize", drawWheel);
+        window.addEventListener("resize", refitOnResize);
 
         const mapLink = document.querySelector("#new-map-link");
         mapLink.addEventListener("change", () => {

@@ -1,3 +1,4 @@
+@charset "UTF-8";
 :root {
     color-scheme: light;
     font-family: "Trebuchet MS", "Segoe UI", sans-serif;
@@ -81,23 +82,27 @@ h1 span {
 
 .layout {
     display: grid;
-    grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr);
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 500px);
     align-items: start;
     gap: clamp(24px, 4.5vw, 64px);
 }
 
 .wheel-area {
     position: sticky;
-    top: 20px;
+    top: 22px; /* same as the page's top padding, so the title and wheel don't move at all when scrolling */
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 12px 0 20px;
+    padding: 4px 0 20px;
+}
+
+.wheel-area .page-header {
+    align-self: stretch;
 }
 
 .wheel-frame {
     position: relative;
-    width: min(100%, 610px, max(300px, calc(100svh - 230px)));
+    width: min(100%, 610px, max(300px, calc(100svh - 270px)));
     aspect-ratio: 1;
     padding: 14px;
     border: 1px solid #e5dfce;
@@ -338,6 +343,7 @@ canvas {
 }
 
 .filters {
+    container: filters / inline-size;
     margin-top: 0;
     padding: 16px;
     border: 1px solid #ebe8dc;
@@ -370,29 +376,91 @@ canvas {
     margin-top: 13px;
 }
 
+/* The four filter toggles: buttons that turn green when on */
 .filter-options {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px 12px;
+    gap: 6px;
     margin-top: 14px;
+    padding: 6px;
+    border: 1px solid #e6e8df;
+    border-radius: 16px;
+    background: #f0f2ea;
 }
 
 .filter-check {
+    position: relative;
     display: flex;
-    align-items: flex-start;
+    min-width: 0;
+    align-items: center;
     gap: 8px;
-    color: #566158;
-    font-size: 0.77rem;
-    font-weight: 700;
-    line-height: 1.35;
+    min-height: 42px;
+    padding: 7px 12px;
+    border: 1px solid #e2e5da;
+    border-radius: 12px;
+    background: #fffef9;
+    box-shadow: 0 1px 2px #23332d0d;
+    color: #5c665d;
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 800;
+    line-height: 1.2;
+    user-select: none;
+    transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease;
 }
 
+.filter-check:hover {
+    border-color: #bfd0bf;
+    transform: translateY(-1px);
+}
+
+.filter-check:active {
+    transform: translateY(0);
+}
+
+/* the real checkbox stays for keyboards and screen readers, just invisible */
 .filter-check input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    opacity: 0;
+}
+
+.toggle-text {
+    min-width: 0;
+}
+
+.toggle-icon {
+    display: grid;
     width: 16px;
     height: 16px;
-    flex: 0 0 auto;
-    margin: 0;
-    accent-color: var(--green);
+    flex: none;
+    place-items: center;
+    border: 2px solid #cdd3c6;
+    border-radius: 50%;
+    background: #fff;
+    color: transparent;
+    font-size: 0.58rem;
+    font-weight: 900;
+    transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.filter-check:has(input:checked) {
+    border-color: #a8cbb0;
+    background: #e6f2e6;
+    color: #2f5a3c;
+}
+
+.filter-check:has(input:checked) .toggle-icon {
+    border-color: var(--green);
+    background: var(--green);
+    color: #fff;
+}
+
+.filter-check:has(input:focus-visible) {
+    outline: 2px solid #8fb39a;
+    outline-offset: 2px;
 }
 
 .filter-fields,
@@ -528,6 +596,29 @@ textarea::placeholder {
     color: #a0a49b;
 }
 
+/* Dropdowns: same look as the "Place type" menu instead of the browser's own */
+select {
+    padding-right: 34px;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%2370776d' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m2.5 4.5 3.5 3.5 3.5-3.5'/%3E%3C/svg%3E");
+    background-position: right 12px center;
+    background-repeat: no-repeat;
+    cursor: pointer;
+    transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+select:hover {
+    border-color: #bfd0bf;
+}
+
+/* Max walking time / Max lunch price turn green like the toggles when set */
+.filter-fields select:has(option:checked:not([value=""])) {
+    border-color: #a8cbb0;
+    background-color: #e6f2e6;
+    color: #2f5a3c;
+    font-weight: 800;
+}
+
 input[type="search"] {
     padding-left: 38px;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%2372786f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-4-4'/%3E%3C/svg%3E");
@@ -562,6 +653,7 @@ a:focus-visible {
 
 
 .option-list {
+    container: shortlist / inline-size;
     display: grid;
     gap: 9px;
     margin: 0;
@@ -573,7 +665,7 @@ a:focus-visible {
     position: relative;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    align-items: start;
+    align-items: center;
     gap: 0 9px;
     padding: 7px 9px 7px 11px;
     border: 1px solid #e9e7dc;
@@ -626,14 +718,18 @@ a:focus-visible {
 .option-heading {
     display: flex;
     min-width: 0;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
-    gap: 5px 8px;
+    gap: 8px;
 }
 
 .option-name {
-    overflow-wrap: anywhere;
+    min-width: 0;
+    flex: 0 1 auto;
+    overflow: hidden;
     color: var(--ink);
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-size: 0.8rem;
     font-weight: 900;
     letter-spacing: -0.015em;
@@ -674,6 +770,7 @@ a:focus-visible {
 
 .option-actions {
     display: flex;
+    flex-wrap: nowrap;
     align-items: center;
     gap: 3px;
 }
@@ -1007,11 +1104,16 @@ a:focus-visible {
 
 @media (max-width: 460px) {
     .filter-options {
-        grid-template-columns: 1fr;
-        gap: 9px;
+        gap: 5px;
+        padding: 6px;
     }
 
-    .filter-fields,
+    .filter-check {
+        padding: 7px 10px;
+        gap: 7px;
+        font-size: 0.76rem;
+    }
+
     .form-grid,
     .edit-fields {
         grid-template-columns: 1fr;
@@ -1225,10 +1327,10 @@ a:focus-visible {
 
 .branch-picker select {
     max-width: 100%;
-    padding: 3px 6px;
+    padding: 4px 28px 4px 8px;
     border: 1px solid #dfe3d8;
     border-radius: 8px;
-    background: #fff;
+    background-color: #fff;
     color: var(--ink);
     font: inherit;
     font-weight: 600;
@@ -1293,14 +1395,289 @@ a:focus-visible {
     outline-offset: 3px;
 }
 
-.option-heading::after {
-    content: "▾";
+.open-arrow {
     color: #9aa197;
     font-size: 0.75rem;
     transition: transform 150ms ease;
 }
 
-.option-list li.open .option-heading::after {
+.option-list li.open .open-arrow {
     transform: rotate(180deg);
 }
 
+
+.toggle-lead {
+    white-space: nowrap;
+}
+
+/* When the filter box is too narrow for two toggles per row without cutting the text, use one per row */
+@container filters (max-width: 300px) {
+    .filter-options {
+        grid-template-columns: 1fr;
+        gap: 5px;
+    }
+}
+
+/* Search and place type share one row */
+.filter-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 8px;
+    margin-top: 13px;
+}
+
+.filter-top .search-label {
+    margin-top: 0;
+}
+
+@container filters (max-width: 360px) {
+    .filter-top {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Open card: the key line with the links on its right, and the dropdowns side by side when there's room */
+.detail-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px 16px;
+}
+
+.detail-dropdowns {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    align-items: start;
+    gap: 6px;
+}
+
+/* At-a-glance info in the empty space of a closed card: today's hours and the walk */
+.option-glance {
+    flex: none;
+    margin-left: auto;
+    color: #6b746a;
+    font-size: 0.72rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.option-glance .glance-closed {
+    color: #a0614f;
+}
+
+.option-meta {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+
+/* Set by fitCardRows() in app.js on cards that are too crowded for everything on one row */
+.option-list li.hide-walk .glance-walk,
+.option-list li.hide-badge .option-meta .category-badge,
+.option-list li.hide-hours .option-glance {
+    display: none;
+}
+
+@container shortlist (max-width: 400px) {
+    .option-actions .edit-button {
+        padding: 4px 7px;
+        font-size: 0.68rem;
+    }
+
+    .option-actions .remove-button {
+        width: 26px;
+        height: 26px;
+    }
+
+    .option-glance {
+        font-size: 0.68rem;
+    }
+}
+
+/* Phones: the shortlist is one column all the way down */
+@media (max-width: 720px) {
+    .filter-top,
+    .filter-options,
+    .filters .filter-fields {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    /* vegetarian, unconfirmed prices, unconfirmed hours, then closed places */
+    .filter-options .filter-check:has(#filter-closed) {
+        order: 1;
+    }
+}
+
+/* ---- Spin result: a card that pops up over the wheel ---- */
+.winner-card {
+    position: absolute;
+    z-index: 4;
+    top: 50%;
+    left: 50%;
+    display: grid;
+    width: min(88%, 360px);
+    gap: 8px;
+    padding: 22px 20px 18px;
+    border: 1px solid #e7e2d2;
+    border-radius: 22px;
+    background: #fffef9;
+    box-shadow: 0 24px 60px #23332d38, 0 4px 14px #23332d1f;
+    color: var(--ink);
+    text-align: center;
+    transform: translate(-50%, -50%);
+    animation: winner-pop 260ms cubic-bezier(0.2, 0.9, 0.3, 1.3);
+}
+
+.winner-card[hidden] {
+    display: none;
+}
+
+@keyframes winner-pop {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -46%) scale(0.92);
+    }
+}
+
+.winner-close {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    width: 30px;
+    height: 30px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #8c9288;
+    cursor: pointer;
+    font: inherit;
+    font-size: 1.2rem;
+}
+
+.winner-close:hover {
+    background: #f1f2ec;
+    color: var(--ink);
+}
+
+.winner-kicker {
+    margin: 0;
+    color: #bc654a;
+    font-size: 0.7rem;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.winner-name {
+    margin: 0;
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    letter-spacing: -0.04em;
+    line-height: 1.05;
+}
+
+.winner-address {
+    margin: -2px 0 0;
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.winner-facts {
+    margin: 2px 0 0;
+    color: #5c645b;
+    font-size: 0.84rem;
+    font-weight: 700;
+    line-height: 1.45;
+}
+
+.winner-tags {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 5px;
+    margin: 0;
+}
+
+.winner-tags span {
+    padding: 2px 9px;
+    border: 1px solid #efe1b6;
+    border-radius: 999px;
+    background: #fdf6e3;
+    color: #7a5a17;
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+
+.winner-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.winner-button,
+a.winner-button {
+    padding: 8px 14px;
+    border: 1px solid #dfe3d8;
+    border-radius: 999px;
+    background: #fff;
+    color: #4f5a50;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 800;
+    text-decoration: none;
+    transition: background 140ms ease, border-color 140ms ease;
+}
+
+.winner-button:hover {
+    border-color: #bfd0bf;
+    background: #f3f7f0;
+}
+
+a.winner-button.primary {
+    border-color: var(--tomato);
+    background: var(--tomato);
+    color: #fff;
+}
+
+a.winner-button.primary:hover {
+    background: #ea7c60;
+}
+
+/* "Reset filters" link in the filter heading, only shown when something is set */
+.reset-filters {
+    padding: 4px 10px;
+    border: 1px solid #e2dccb;
+    border-radius: 999px;
+    background: #fffef9;
+    color: #ad573e;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+
+.reset-filters:hover {
+    background: #fff4ee;
+}
+
+.reset-filters[hidden] {
+    display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .winner-card {
+        animation: none;
+    }
+}
+
+.winner-card:focus {
+    outline: none;
+}

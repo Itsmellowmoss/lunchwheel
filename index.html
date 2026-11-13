@@ -5,25 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#f7f5eb">
     <title>Lunch Wheel</title>
-    <link rel="stylesheet" href="styles.css?v=28">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23fffef9'/%3E%3Cpath d='M16 16 16 2A14 14 0 0 1 28.1 9Z' fill='%23e8615a'/%3E%3Cpath d='M16 16 28.1 9A14 14 0 0 1 28.1 23Z' fill='%23e7c356'/%3E%3Cpath d='M16 16 28.1 23A14 14 0 0 1 16 30Z' fill='%2357c46b'/%3E%3Cpath d='M16 16 16 30A14 14 0 0 1 3.9 23Z' fill='%2356c2d6'/%3E%3Cpath d='M16 16 3.9 23A14 14 0 0 1 3.9 9Z' fill='%235b6be0'/%3E%3Cpath d='M16 16 3.9 9A14 14 0 0 1 16 2Z' fill='%23d65bd6'/%3E%3Ccircle cx='16' cy='16' r='4.5' fill='%23e76f51' stroke='%23fffef9' stroke-width='1.5'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css?v=50">
     <script src="restaurants.js?v=20" defer></script>
-    <script src="app.js?v=54" defer></script>
+    <script src="app.js?v=66" defer></script>
 </head>
 <body>
     <main>
-        <header class="page-header">
-            <h1>Good lunch.<br><span>Zero deciding.</span></h1>
-            <p class="subtitle">Well, maybe a bit of deciding.</p>
-        </header>
-
         <div class="layout">
             <section class="wheel-area" aria-label="Lunch picker wheel">
+                <header class="page-header">
+                    <h1>Good lunch.<br><span>Zero deciding.</span></h1>
+                    <p class="subtitle">Well, maybe a bit of deciding.</p>
+                </header>
                 <div class="wheel-frame">
                     <div class="pointer" aria-hidden="true"></div>
                     <div class="wheel-ticker" id="wheel-ticker" aria-hidden="true" hidden></div>
                     <canvas id="wheel" role="img" aria-label="Wheel of nearby restaurants"></canvas>
                     <div class="wheel-tooltip" id="wheel-tooltip" role="status" hidden></div>
-                    <button class="wheel-hub" id="spin" type="button" disabled aria-label="Spin the wheel"><span>LET'S</span><strong>SPIN</strong></button>
+                    <button class="wheel-hub" id="spin" type="button" disabled aria-label="Spin the wheel" title="Spin (or press Space)"><span>LET'S</span><strong>SPIN</strong></button>
+                    <div class="winner-card" id="winner-card" role="dialog" aria-label="Spin result" tabindex="-1" hidden></div>
                     <div class="wheel-empty" id="wheel-empty" role="status" aria-live="polite" hidden>
                         <strong id="wheel-empty-title"></strong>
                         <span id="wheel-empty-message"></span>
@@ -45,15 +46,16 @@
                 <section class="filters" aria-labelledby="filters-title">
                     <div class="filters-heading">
                         <h3 id="filters-title">Find your kind of lunch</h3>
+                        <button class="reset-filters" id="reset-filters" type="button" hidden>Reset filters</button>
                     </div>
-                    <label class="search-label" for="place-search"><span class="visually-hidden">Search by name, address, or cuisine</span>
-                        <input id="place-search" type="search" placeholder="Try sushi, pizza, or a name…" autocomplete="off">
-                    </label>
-                    <div class="filter-fields filter-single">
+                    <div class="filter-top">
+                        <label class="search-label" for="place-search"><span class="visually-hidden">Search by name, address, or cuisine</span>
+                            <input id="place-search" type="search" placeholder="Try sushi, pizza, or a name…" autocomplete="off">
+                        </label>
                         <div class="category-filter">
-                            <span class="filter-field-label">Place type</span>
+                            <span class="visually-hidden">Place type</span>
                             <details id="category-filter-menu">
-                                <summary id="category-filter-summary">All types</summary>
+                                <summary id="category-filter-summary">All place types</summary>
                                 <div class="category-filter-options" role="group" aria-label="Filter by place type">
                                     <label><input name="filter-category" type="checkbox" value="Restaurant"> Restaurants</label>
                                     <label><input name="filter-category" type="checkbox" value="Cafe"> Cafes</label>
@@ -66,18 +68,26 @@
                             </details>
                         </div>
                     </div>
-                    <div class="filter-options">
+                    <div class="filter-options" role="group" aria-label="What the list and wheel include">
+                        <label class="filter-check">
+                            <input id="filter-vegetarian" type="checkbox">
+                            <span class="toggle-icon" aria-hidden="true">✓</span>
+                            <span class="toggle-text"><span class="toggle-lead"><span aria-hidden="true">🌱</span>&nbsp;Vegetarian</span> options</span>
+                        </label>
                         <label class="filter-check">
                             <input id="filter-closed" type="checkbox" checked>
-                            Include closed places on the wheel
+                            <span class="toggle-icon" aria-hidden="true">✓</span>
+                            <span class="toggle-text"><span class="toggle-lead"><span aria-hidden="true">🌙</span>&nbsp;Closed</span> places</span>
                         </label>
                         <label class="filter-check">
                             <input id="filter-unpriced" type="checkbox" checked>
-                            Show and spin places without confirmed prices
+                            <span class="toggle-icon" aria-hidden="true">✓</span>
+                            <span class="toggle-text"><span class="toggle-lead"><span aria-hidden="true">💰</span>&nbsp;Unconfirmed</span> prices</span>
                         </label>
                         <label class="filter-check">
-                            <input id="filter-vegetarian" type="checkbox">
-                            Has vegetarian options
+                            <input id="filter-unconfirmed" type="checkbox" checked>
+                            <span class="toggle-icon" aria-hidden="true">✓</span>
+                            <span class="toggle-text"><span class="toggle-lead"><span aria-hidden="true">🕒</span>&nbsp;Unconfirmed</span> hours</span>
                         </label>
                     </div>
                     <div class="filter-fields">
