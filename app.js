@@ -27,6 +27,8 @@
     const WINNER_DETAILS = document.querySelector("#winner-details");
     const WINNER_CARD = document.querySelector("#winner-card");
     const RESET_FILTERS = document.querySelector("#reset-filters");
+    const MEMORY_CONTENT = document.querySelector("#memory-content");
+    let pristineRestaurants = []; // the saved list as loaded, so an edit can be undone exactly
     const FILTER_SETTINGS_KEY = "lunch-wheel-filters-v2"; // v2: closed and unconfirmed places start switched off
     const WHEEL_EMPTY = document.querySelector("#wheel-empty");
     const WHEEL_EMPTY_TITLE = document.querySelector("#wheel-empty-title");
@@ -1891,6 +1893,7 @@
         });
         fitCardRows();
         updateResetVisibility();
+        renderMemory();
 
         if (spinning) {
             // The spin animation owns the result text until it finishes.
@@ -1988,6 +1991,151 @@
         CATEGORY_FILTER_SUMMARY.textContent = selected.length === 0
             ? "All place types"
             : selected.length <= 2 ? selected.join(" + ") : `${selected.length} types selected`;
+    }
+
+    // ---- "Your saved changes": everything this browser remembers, each with a way to undo it ----
+
+    const EDIT_LABELS = {
+        name: "name", address: "address", category: "type", cuisine: "type", walkMinutes: "walking time",
+        priceMin: "price", priceMax: "price", priceNote: "price",
+        vegetarian: "vegetarian", vegetarianNote: "vegetarian", hours: "hours"
+    };
+
+    // Starts the list again from the untouched saved list plus this browser's places and edits
+    function rebuildRestaurants() {
+        data.restaurants = pristineRestaurants.map((restaurant) => structuredClone(restaurant));
+        restaurants = applySavedRestaurantEdits([...data.restaurants, ...customRestaurants]);
+        if (osmRestaurants.length) mergeNearbyRestaurants(osmRestaurants);
+        else renderRestaurants();
+    }
+
+    function placeName(id) {
+        const place = restaurants.find((restaurant) => restaurant.id === id)
+            || pristineRestaurants.find((restaurant) => restaurant.id === id)
+            || customRestaurants.find((restaurant) => restaurant.id === id);
+        if (!place) return "A place that's no longer listed";
+        return `${place.name}${place.address ? `, ${shortAddress(place)}` : ""}`;
+    }
+
+    function memoryRow(title, detail, buttonText, onClick) {
+        const row = document.createElement("div");
+        row.className = "memory-row";
+        const text = document.createElement("span");
+        text.className = "memory-text";
+        const name = document.createElement("strong");
+        name.textContent = title;
+        text.append(name);
+        if (detail) {
+            const small = document.createElement("span");
+            small.className = "memory-detail";
+            small.textContent = detail;
+            text.append(small);
+        }
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "edit-button";
+        button.textContent = buttonText;
+        button.addEventListener("click", onClick);
+        row.append(text, button);
+        return row;
+    }
+
+    function memoryGroup(heading, rows) {
+        if (!rows.length) return null;
+        const group = document.createElement("div");
+        group.className = "memory-group";
+        const title = document.createElement("h4");
+        title.textContent = heading;
+        group.append(title, ...rows);
+        return group;
+    }
+
+    function renderMemory() {
+        const groups = [];
+        groups.push(memoryGroup("Edited places", editedRestaurants.map((edit) => {
+            const changed = [...new Set(Object.keys(edit).map((field) => EDIT_LABELS[field]).filter(Boolean))];
+            return memoryRow(placeName(edit.id), changed.length ? `Changed: ${changed.join(", ")}` : "", "Undo edit", () => {
+                editedRestaurants = editedRestaurants.filter((other) => other.id !== edit.id);
+                saveUserData();
+                rebuildRestaurants();
+                showToast("Edit undone.");
+            });
+        })));
+        groups.push(memoryGroup("Removed places", hiddenIds.map((id) => memoryRow(placeName(id), "", "Restore", () => {
+            restoreHiddenPlaces([id]);
+            showToast("Back on the list.");
+        }))));
+        groups.push(memoryGroup("Places you added", customRestaurants.map((place) => memoryRow(placeName(place.id), "", "Delete", () => {
+            customRestaurants = customRestaurants.filter((other) => other.id !== place.id);
+            editedRestaurants = editedRestaurants.filter((edit) => edit.id !== place.id);
+            hiddenIds = hiddenIds.filter((id) => id !== place.id);
+            saveUserData();
+            rebuildRestaurants();
+            showToast("Place deleted.");
+        }))));
+
+        const other = [];
+        const reviewer = readReviewerName();
+        if (reviewer) {
+            other.push(memoryRow(`Your name for reviews: ${reviewer}`, "", "Forget", () => {
+                try {
+                    localStorage.removeItem(REVIEWER_NAME_KEY);
+                } catch {
+                    // nothing saved then
+                }
+                renderMemory();
+            }));
+        }
+        const filtersChanged = JSON.stringify(filterSettings()) !== DEFAULT_FILTERS;
+        if (filtersChanged || SORT_SELECT.value !== "info") {
+            other.push(memoryRow("Saved filters and sort order", "", "Reset", () => {
+                SORT_SELECT.value = "info";
+                try {
+                    localStorage.removeItem(SORT_KEY);
+                } catch {
+                    // nothing saved then
+                }
+                resetFilters();
+            }));
+        }
+        groups.push(memoryGroup("Other", other));
+
+        const shown = groups.filter(Boolean);
+        if (!shown.length) {
+            const empty = document.createElement("p");
+            empty.className = "memory-empty";
+            empty.textContent = "Nothing saved yet. Places you edit, remove or add show up here.";
+            MEMORY_CONTENT.replaceChildren(empty);
+            return;
+        }
+        const clearAll = document.createElement("button");
+        clearAll.type = "button";
+        clearAll.className = "memory-clear";
+        clearAll.textContent = "Clear everything";
+        clearAll.addEventListener("click", () => {
+            if (!window.confirm("Undo all your edits, bring back removed places, delete places you added and forget your saved settings?")) return;
+            editedRestaurants = [];
+            hiddenIds = [];
+            customRestaurants = [];
+            saveUserData();
+            for (const key of [REVIEWER_NAME_KEY, SORT_KEY, FILTER_SETTINGS_KEY]) {
+                try {
+                    localStorage.removeItem(key);
+                } catch {
+                    // nothing saved then
+                }
+            }
+            SORT_SELECT.value = "info";
+            resetFilters(); // re-renders with the defaults
+            try {
+                localStorage.removeItem(FILTER_SETTINGS_KEY); // resetFilters saved the defaults again
+            } catch {
+                // nothing saved then
+            }
+            rebuildRestaurants();
+            showToast("Everything cleared.");
+        });
+        MEMORY_CONTENT.replaceChildren(...shown, clearAll);
     }
 
     function restoreHiddenPlaces(ids) {
@@ -2276,6 +2424,7 @@
             editedRestaurants = editedRestaurants.map((edit) => migrateLegacyEdit(edit, basesById.get(edit.id)));
             saveUserData();
         }
+        pristineRestaurants = data.restaurants.map((restaurant) => structuredClone(restaurant));
         restoreFilterSettings();
         try {
             const savedSort = localStorage.getItem(SORT_KEY);

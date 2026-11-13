@@ -1730,3 +1730,89 @@ a.winner-button.primary:hover {
     background: #dfdfd3;
     content: "";
 }
+
+/* Text boxes and dropdowns: a soft green glow when active instead of the thick yellow outline */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    border-color: #8fb39a;
+    outline: none;
+    box-shadow: 0 0 0 3px #8fb39a40;
+}
+
+/* "Your saved changes" */
+.memory-icon {
+    font-size: 0.85rem;
+}
+
+.memory-section[open] .memory-icon {
+    transform: none;
+}
+
+#memory-content {
+    display: grid;
+    gap: 14px;
+    padding-top: 12px;
+}
+
+.memory-group {
+    display: grid;
+    gap: 2px;
+}
+
+.memory-group h4 {
+    margin: 0 0 4px;
+    color: #6b746a;
+    font-size: 0.7rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.memory-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid #f0efe7;
+}
+
+.memory-text {
+    display: grid;
+    min-width: 0;
+    gap: 1px;
+    color: var(--ink);
+    font-size: 0.8rem;
+}
+
+.memory-text strong {
+    overflow: hidden;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.memory-detail,
+.memory-empty {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.74rem;
+}
+
+.memory-clear {
+    justify-self: start;
+    padding: 6px 12px;
+    border: 1px solid #ecd2c6;
+    border-radius: 999px;
+    background: #fff7f3;
+    color: #b0472d;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.76rem;
+    font-weight: 800;
+}
+
+.memory-clear:hover {
+    background: #ffece3;
+}
