@@ -9,6 +9,11 @@
     const OSM_CACHE_KEY = "lunch-wheel-osm-cache-v2";
     const OSM_CACHE_MAX_AGE = 2 * 60 * 60 * 1000;
     const OVERPASS_URL = "https://overpass.kumi.systems/api/interpreter";
+    // Reviews are shared with lunchbot (the Slack bot): this is its reviews address on Vercel, e.g.
+    // "https://your-lunchbot.vercel.app/api/reviews". Leave it empty to hide reviews.
+    const REVIEWS_API = "https://lunchbot-rust.vercel.app/api/reviews";
+    const REVIEWER_NAME_KEY = "lunch-wheel-reviewer-name-v1";
+    const RATING_LABELS = { 5: "Loved it", 4: "Good", 3: "OK", 2: "Not great", 1: "Bad" };
     const SEARCH_RADIUS_METERS = 1400;
     const ORIGIN_COORDINATES = [59.3395657, 18.0592044];
     const CATEGORIES = ["Restaurant", "Cafe", "Fast food", "Bakery", "Sandwich shop", "Takeaway", "Brunch"];
@@ -69,6 +74,9 @@
     let lastIdleFrame = null;
     let osmRestaurants = [];
     let osmLookupRunning = false;
+    let reviewSummaries = new Map();
+    let reviewsState = REVIEWS_API ? "loading" : "off";
+    let reviewableIds = new Set();
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
     function showFormMessage(message, isError = false) {
@@ -922,7 +930,8 @@
             status.state === "unknown" ? "Hours not confirmed" : status.label,
             restaurant.address || "",
             restaurant.walkMinutes ? `${restaurant.walkIsEstimate ? "~" : ""}${restaurant.walkMinutes} min walk` : "",
-            priceText(restaurant)
+            priceText(restaurant),
+            ratingSummaryText(restaurant)
         ].filter(Boolean).join(" · ");
         WHEEL_TOOLTIP.replaceChildren(name, category, details);
         WHEEL_TOOLTIP.hidden = false;
@@ -1109,6 +1118,184 @@
         return form;
     }
 
+    // ---- Reviews (shared with lunchbot) ----
+
+    // Loads every place's average, count and newest reviews. The page keeps working if this fails.
+    async function loadReviews({ rerender = true } = {}) {
+        if (!REVIEWS_API) return;
+        try {
+            const response = await fetch(REVIEWS_API, { signal: AbortSignal.timeout(10_000) });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(result.error || `HTTP ${response.status}`);
+            reviewSummaries = new Map(Object.entries(result.places || {}));
+            reviewsState = "ready";
+        } catch (error) {
+            console.warn("Could not load reviews:", error);
+            reviewsState = "failed";
+        }
+        // Don't throw away a form someone is filling in; the next re-render shows the reviews
+        if (rerender && !OPTION_LIST.querySelector("form")) renderRestaurants();
+    }
+
+    function stars(rating) {
+        return "★".repeat(rating) + "☆".repeat(5 - rating);
+    }
+
+    function ratingSummaryText(restaurant) {
+        const summary = reviewSummaries.get(restaurant.id);
+        if (!summary) return "";
+        return `★ ${summary.average.toFixed(1)} · ${summary.count} review${summary.count === 1 ? "" : "s"}`;
+    }
+
+    function readReviewerName() {
+        try {
+            return localStorage.getItem(REVIEWER_NAME_KEY) || "";
+        } catch {
+            return "";
+        }
+    }
+
+    function saveReviewerName(name) {
+        try {
+            localStorage.setItem(REVIEWER_NAME_KEY, name);
+        } catch {
+            // Only a convenience: the name just won't be filled in next time
+        }
+    }
+
+    function createReviewSection(restaurant) {
+        const section = document.createElement("div");
+        section.className = "review-section";
+        const heading = document.createElement("span");
+        heading.className = "review-heading";
+        const summary = reviewSummaries.get(restaurant.id);
+        if (reviewsState === "loading") heading.textContent = "Reviews: loading…";
+        else if (reviewsState === "failed") heading.textContent = "Reviews could not be loaded right now.";
+        else if (!summary) heading.textContent = "Reviews: none yet. Be the first!";
+        else heading.textContent = `Reviews: ${ratingSummaryText(restaurant)}`;
+        section.append(heading);
+
+        if (summary?.recent?.length) {
+            const list = document.createElement("div");
+            list.className = "review-list";
+            const dateFormat = new Intl.DateTimeFormat("en-GB", { timeZone: data.timezone, day: "numeric", month: "short" });
+            for (const review of summary.recent) {
+                const item = document.createElement("div");
+                const rating = document.createElement("span");
+                rating.className = "review-stars";
+                rating.textContent = stars(review.rating);
+                rating.setAttribute("aria-label", `${review.rating} out of 5`);
+                const when = review.date ? ` · ${dateFormat.format(new Date(review.date))}` : "";
+                item.append(rating, ` ${review.name}${when}`);
+                if (review.comment) {
+                    const comment = document.createElement("q");
+                    comment.textContent = review.comment;
+                    item.append(" ", comment);
+                }
+                list.append(item);
+            }
+            section.append(list);
+        }
+        return section;
+    }
+
+    function createReviewForm(restaurant, onClose) {
+        const form = document.createElement("form");
+        form.className = "edit-form review-form";
+        const fields = document.createElement("div");
+        fields.className = "edit-fields";
+
+        const name = document.createElement("input");
+        name.type = "text";
+        name.maxLength = 40;
+        name.required = true;
+        name.placeholder = "Shown with your review";
+        name.value = readReviewerName();
+        const rating = document.createElement("select");
+        rating.required = true;
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "Choose…";
+        rating.append(placeholder);
+        for (const value of [5, 4, 3, 2, 1]) {
+            const option = document.createElement("option");
+            option.value = String(value);
+            option.textContent = `${stars(value)} ${value} – ${RATING_LABELS[value]}`;
+            rating.append(option);
+        }
+        const comment = document.createElement("textarea");
+        comment.rows = 3;
+        comment.maxLength = 500;
+        comment.placeholder = "What did you have? Would you go back? (optional)";
+        fields.append(
+            createEditorField("Your name", name),
+            createEditorField("Rating", rating),
+            createEditorField("Comment", comment)
+        );
+
+        const actions = document.createElement("div");
+        actions.className = "edit-actions";
+        const saveButton = document.createElement("button");
+        saveButton.className = "add-button";
+        saveButton.type = "submit";
+        saveButton.textContent = "Post review";
+        const cancelButton = document.createElement("button");
+        cancelButton.className = "cancel-edit-button";
+        cancelButton.type = "button";
+        cancelButton.textContent = "Cancel";
+        const message = document.createElement("p");
+        message.className = "form-message edit-message";
+        message.setAttribute("aria-live", "polite");
+        actions.append(saveButton, cancelButton);
+        const note = document.createElement("p");
+        note.className = "review-form-note";
+        note.textContent = "Reviews are shared with everyone using Lunch Wheel and lunchbot in Slack.";
+        form.append(fields, actions, message, note);
+
+        cancelButton.addEventListener("click", onClose);
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            message.classList.remove("error");
+            const cleanName = name.value.trim().replace(/\s+/g, " ");
+            if (!cleanName) {
+                message.textContent = "Add your name.";
+                message.classList.add("error");
+                return;
+            }
+            saveButton.disabled = true;
+            message.textContent = "Saving…";
+            try {
+                const response = await fetch(REVIEWS_API, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        restaurantId: restaurant.id,
+                        name: cleanName,
+                        rating: Number(rating.value),
+                        comment: comment.value.trim()
+                    }),
+                    signal: AbortSignal.timeout(15_000)
+                });
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(result.error || `The review could not be saved (HTTP ${response.status}).`);
+                saveReviewerName(cleanName);
+                onClose();
+                await loadReviews({ rerender: false });
+                renderRestaurants();
+                DATA_NOTE.textContent = `Thanks, ${cleanName}! Your review of ${displayRestaurantName(restaurant)} is saved.`;
+            } catch (error) {
+                message.textContent = error.name === "TimeoutError"
+                    ? "Saving took too long. Check your connection and try again."
+                    : error instanceof TypeError
+                        ? "Couldn't reach the review server. Check your connection and try again."
+                        : error.message;
+                message.classList.add("error");
+                saveButton.disabled = false;
+            }
+        });
+        return form;
+    }
+
     function renderRestaurants(now = getStockholmTime()) {
         hoveredRestaurantIndex = -1;
         WHEEL_TOOLTIP.hidden = true;
@@ -1202,6 +1389,14 @@
                 : status.state === "closed" ? "Closed now" : "Opening hours unconfirmed";
             heading.append(statusDot);
             heading.prepend(name, categoryBadge);
+            const ratingText = ratingSummaryText(restaurant);
+            if (ratingText) {
+                const ratingBadge = document.createElement("span");
+                ratingBadge.className = "rating-badge";
+                ratingBadge.textContent = `★ ${reviewSummaries.get(restaurant.id).average.toFixed(1)}`;
+                ratingBadge.title = ratingText;
+                categoryBadge.after(ratingBadge);
+            }
 
             const actions = document.createElement("div");
             actions.className = "option-actions";
@@ -1212,7 +1407,7 @@
             editButton.setAttribute("aria-label", `Edit ${displayRestaurantName(restaurant)}`);
             editButton.setAttribute("aria-expanded", "false");
             editButton.addEventListener("click", () => {
-                const currentForm = details.querySelector(".edit-form");
+                const currentForm = details.querySelector(".edit-form:not(.review-form)");
                 if (currentForm) {
                     currentForm.remove();
                     editButton.textContent = "Edit";
@@ -1249,6 +1444,32 @@
                 WINNER_DETAILS.append(undoButton);
                 renderRestaurants();
             });
+            const canReview = REVIEWS_API && reviewableIds.has(restaurant.id);
+            if (canReview) {
+                const reviewButton = document.createElement("button");
+                reviewButton.className = "edit-button";
+                reviewButton.type = "button";
+                reviewButton.textContent = "Review";
+                reviewButton.setAttribute("aria-label", `Review ${displayRestaurantName(restaurant)}`);
+                reviewButton.setAttribute("aria-expanded", "false");
+                const closeReviewForm = () => {
+                    details.querySelector(".review-form")?.remove();
+                    reviewButton.textContent = "Review";
+                    reviewButton.setAttribute("aria-expanded", "false");
+                };
+                reviewButton.addEventListener("click", () => {
+                    if (details.querySelector(".review-form")) {
+                        closeReviewForm();
+                        return;
+                    }
+                    const form = createReviewForm(restaurant, closeReviewForm);
+                    details.append(form);
+                    reviewButton.textContent = "Close review";
+                    reviewButton.setAttribute("aria-expanded", "true");
+                    form.querySelector(form.querySelector("input").value ? "select" : "input").focus();
+                });
+                actions.append(reviewButton);
+            }
             actions.append(editButton, removeButton);
 
             const details = document.createElement("div");
@@ -1264,6 +1485,12 @@
                 : restaurant.vegetarian === "no" ? "Vegetarian: No" : `Vegetarian: Not confirmed${restaurant.vegetarianNote ? ` — ${restaurant.vegetarianNote}` : ""}`;
             meta.textContent = `${vegetarianText} · ${priceText(restaurant)}`;
             details.append(meta);
+            if (canReview) details.append(createReviewSection(restaurant));
+            if (restaurant.unverified) {
+                const unverified = document.createElement("span");
+                unverified.textContent = "Details come from OpenStreetMap and haven't been checked by hand yet.";
+                details.append(unverified);
+            }
 
             if (isWebLink(restaurant.vegetarianSource)) {
                 details.append(createLink(restaurant.vegetarianSource, "Vegetarian source"));
@@ -1427,7 +1654,11 @@
             const info = document.createElement("strong");
             info.textContent = displayRestaurantName(selected);
             RESULT.replaceChildren("Today you’re having ", info, "!");
-            WINNER_DETAILS.replaceChildren(`${getStatus(selected, getStockholmTime()).label} · ${priceText(selected)}`);
+            WINNER_DETAILS.replaceChildren([
+                getStatus(selected, getStockholmTime()).label,
+                priceText(selected),
+                ratingSummaryText(selected)
+            ].filter(Boolean).join(" · "));
             if (selected.walkMinutes) {
                 WINNER_DETAILS.append(createLink(
                     directionsUrl(selected),
@@ -1583,6 +1814,7 @@
             saveUserData();
         }
         restaurants = applySavedRestaurantEdits([...data.restaurants, ...customRestaurants]);
+        reviewableIds = new Set(data.restaurants.map((restaurant) => restaurant.id));
         DATA_NOTE.textContent = `Starting point: ${data.location}. Checking nearby OpenStreetMap data; saved schedules use Stockholm local time.`;
 
         for (const input of [...Object.values(FILTERS), ...CATEGORY_FILTERS]) {
@@ -1656,8 +1888,10 @@
         renderRestaurants();
         requestAnimationFrame(animateIdle);
         refreshNearbyData();
+        loadReviews();
         window.setInterval(() => {
-            if (!spinning) renderRestaurants();
+            // Re-rendering rebuilds the list, so wait while someone is filling in a review or an edit
+            if (!spinning && !OPTION_LIST.querySelector("form")) renderRestaurants();
         }, 60_000);
     }
 

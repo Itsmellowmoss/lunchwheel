@@ -1175,3 +1175,45 @@ a:focus-visible {
     color: #9a4a2f;
     font-weight: 600;
 }
+
+.rating-badge {
+    padding: 3px 7px;
+    border: 1px solid #f0dfb3;
+    border-radius: 999px;
+    background: #fdf6e3;
+    color: #8a6418;
+    font-size: 0.63rem;
+    font-weight: 900;
+    line-height: 1.35;
+}
+
+.review-section {
+    display: grid;
+    gap: 4px;
+}
+
+.review-heading {
+    color: #6a5a2c;
+    font-weight: 800;
+}
+
+.review-list {
+    display: grid;
+    gap: 4px;
+}
+
+.review-stars {
+    color: #c48a12;
+    letter-spacing: 0.04em;
+}
+
+.review-list q {
+    color: #5f675e;
+    font-style: italic;
+}
+
+.review-form-note {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.68rem;
+}
