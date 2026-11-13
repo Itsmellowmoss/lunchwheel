@@ -27,7 +27,7 @@
     const WINNER_DETAILS = document.querySelector("#winner-details");
     const WINNER_CARD = document.querySelector("#winner-card");
     const RESET_FILTERS = document.querySelector("#reset-filters");
-    const FILTER_SETTINGS_KEY = "lunch-wheel-filters-v1";
+    const FILTER_SETTINGS_KEY = "lunch-wheel-filters-v2"; // v2: closed and unconfirmed places start switched off
     const WHEEL_EMPTY = document.querySelector("#wheel-empty");
     const WHEEL_EMPTY_TITLE = document.querySelector("#wheel-empty-title");
     const WHEEL_EMPTY_MESSAGE = document.querySelector("#wheel-empty-message");
@@ -815,9 +815,12 @@
         // Names only show while there's room for them: at most 36 slices, and tall enough near the middle of the wheel
         // where a name starts (smaller wheels, like on phones, switch to the pointer label sooner)
         const showLabels = count <= 36 && radius * 0.4 * slice >= fontSize * 1.05;
-        // Borders only while slices are wide enough to see between them
+        // White gaps between slices: 3px while slices are wide, a thin 1px gap once they're narrow (always, even past
+        // 100 slices). Past 100 the colours run as one rainbow, without alternating light and dark shades.
+        const smoothRainbow = count > 100;
         const sliceWidthAtRim = radius * slice;
-        const borderWidth = sliceWidthAtRim >= 14 ? 3 : sliceWidthAtRim >= 6 ? 1 : 0;
+        const borderWidth = sliceWidthAtRim >= 14 ? 3 : 0;
+        const taperedGaps = !borderWidth;
         CONTEXT.clearRect(0, 0, size, size);
 
         eligibleRestaurants.forEach((restaurant, index) => {
@@ -827,14 +830,17 @@
             const sliceRadius = radius + (isHovered ? 13 : 0);
             CONTEXT.beginPath();
             CONTEXT.moveTo(center, center);
-            // Thin slices get a hair of overlap so no gaps show between them
-            CONTEXT.arc(center, center, sliceRadius, start, end + (borderWidth ? 0 : 0.004));
+            // Narrow slices: instead of a line, leave a wedge-shaped gap about 1.2px wide at the rim that tapers to
+            // nothing at the middle, so hundreds of slices don't turn the centre white
+            const gap = taperedGaps ? Math.min(slice * 0.4, 1.2 / radius) / 2 : 0;
+            CONTEXT.arc(center, center, sliceRadius, start + gap, end - gap);
             CONTEXT.closePath();
             // Rainbow: the colour follows the slice's place around the wheel. Labelled slices are a bit darker so
             // the white names stay readable; thin ones alternate shades so neighbours can be told apart.
             const hue = Math.round(index / count * 360);
             const brightHue = hue >= 45 && hue <= 200; // yellows, greens and cyans need to be darker behind white text
-            const lightness = isHovered ? 46 : showLabels ? (brightHue ? 45 : 54) : index % 2 ? 60 : 66;
+            const lightness = isHovered ? 46 : showLabels ? (brightHue ? 45 : 54) : smoothRainbow ? 62 : index % 2 ? 60 : 66;
+
             CONTEXT.fillStyle = `hsl(${hue} ${isHovered ? 70 : 60}% ${lightness}%)`;
             CONTEXT.fill();
             if (borderWidth) {
@@ -1883,7 +1889,7 @@
     }
 
     const DEFAULT_FILTERS = JSON.stringify({
-        vegetarian: false, showClosed: true, showUnpriced: true, showUnconfirmed: true, walk: "", price: "", categories: []
+        vegetarian: false, showClosed: false, showUnpriced: false, showUnconfirmed: false, walk: "", price: "", categories: []
     });
 
     function saveFilterSettings() {
@@ -1923,9 +1929,9 @@
 
     function resetFilters() {
         FILTERS.search.value = "";
-        FILTERS.showClosed.checked = true;
-        FILTERS.showUnpriced.checked = true;
-        FILTERS.showUnconfirmed.checked = true;
+        FILTERS.showClosed.checked = false;
+        FILTERS.showUnpriced.checked = false;
+        FILTERS.showUnconfirmed.checked = false;
         FILTERS.vegetarian.checked = false;
         FILTERS.walk.value = "";
         FILTERS.price.value = "";
